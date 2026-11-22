@@ -50,6 +50,8 @@ Build small, testable vertical slices. Every consequential action must pass the 
 
 ## Phase 3 — AI routing and memory
 
+1. [x] User-initiated public web search through the dashboard. Only the query is sent to the search provider; local memory and workspace content are not attached.
+
 1. [x] Provider interface and capability declarations.
 2. [x] Loopback-only OpenAI-compatible local provider with health and non-streaming chat.
 3. [x] Explicit cloud egress gate; no cloud provider or silent cloud fallback is enabled.
