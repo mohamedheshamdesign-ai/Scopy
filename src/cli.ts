@@ -307,11 +307,13 @@ async function main(): Promise<void> {
       if (subcommand === "step") {
         const [operation, runId, stepId, ...details] = args;
         if (!operation || !runId || !stepId) {
-          throw new Error('Usage: run step <start|complete|fail> <run-id> <step-id> ["result or reason"]');
+          throw new Error('Usage: run step <start|complete|fail|execute> <run-id> <step-id> [details]');
         }
         let run;
         if (operation === "execute") {
-          const [tool, action, target, payloadJson, approvalId] = details;
+          const [tool, action, target, ...executionArgs] = details;
+          const payloadJson = executionArgs[0]?.trim().startsWith("{") ? executionArgs[0] : undefined;
+          const approvalId = payloadJson ? executionArgs[1] : executionArgs[0];
           if (!tool || !action || !target) {
             throw new Error('Usage: run step execute <run-id> <step-id> filesystem <read|write> <workspace-relative-path> [payload-json] [approval-id]');
           }
@@ -347,7 +349,7 @@ async function main(): Promise<void> {
         } else if (operation === "fail") {
           run = runs.failStep(runId, stepId, details.join(" "));
         } else {
-          throw new Error("Unknown run step operation. Use start, complete, or fail.");
+          throw new Error("Unknown run step operation. Use start, complete, fail, or execute.");
         }
         console.log(JSON.stringify(run, null, 2));
         return;
