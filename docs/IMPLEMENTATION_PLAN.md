@@ -25,7 +25,7 @@ Build a small, testable vertical slice first. Each phase must have acceptance cr
 
 Implement only the contracts and infrastructure required for a first working vertical slice:
 
-1. Typed application configuration with validation and safe defaults.
+1. [ ] Centralized local path configuration and null-character rejection; broader environment schema validation and safe-mode profiles remain open.
 2. Structured logging with secret redaction.
 3. Stable error types and error serialization.
 4. SQLite adapter interface and migration runner.

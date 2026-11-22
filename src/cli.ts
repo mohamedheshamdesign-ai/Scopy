@@ -12,7 +12,6 @@ import { TaskNotFoundError, TaskRepository, type TaskPriority, type TaskStatus }
 import { ProjectRepository } from "./projects/project-repository.js";
 import { BackupService } from "./backup/backup-service.js";
 import { AuditRepository } from "./audit/audit-repository.js";
-import { join } from "node:path";
 import { ApprovalService } from "./permissions/approval-service.js";
 import { ExecutionGuard } from "./permissions/execution-guard.js";
 import { PermissionRepository } from "./permissions/permission-repository.js";
@@ -472,7 +471,7 @@ async function main(): Promise<void> {
             const policy = new PolicyEngine(permissions);
             const approvals = new ApprovalService(database, policy);
             const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
-            new FilesystemTool({ workspaceRoot: join(config.homeDir, "workspace") }).register(gateway);
+            new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
             const runtime = new RuntimeEngine(database, gateway);
             const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
             try {
@@ -514,7 +513,7 @@ async function main(): Promise<void> {
           const policy = new PolicyEngine(permissions);
           const approvals = new ApprovalService(database, policy);
           const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
-          new FilesystemTool({ workspaceRoot: join(config.homeDir, "workspace") }).register(gateway);
+          new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
           const runtime = new RuntimeEngine(database, gateway);
           const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
           const result = await executor.execute(runId, stepId, {

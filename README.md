@@ -68,7 +68,7 @@ npm start -- health
 
 ## Local data
 
-By default, Scopy uses the repository directory as its home and stores runtime data in:
+By default, Scopy uses the repository directory as its home. With `SCOPY_HOME=E:\\Scopy`, all controllable local data stays under that root:
 
 ```text
 E:\Scopy\data\scopy.sqlite

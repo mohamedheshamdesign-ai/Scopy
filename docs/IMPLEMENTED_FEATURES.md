@@ -10,7 +10,7 @@ This document describes code presence, not a claim that the current local checko
 | Feature | Status | Source evidence | Test evidence / limits |
 |---|---|---|---|
 | Node.js/TypeScript CLI entry point | Implemented | `src/cli.ts`, `package.json` | CLI exposes health, task, AI, benchmark, and memory commands. |
-| Local application paths/config | Partial | `src/config.ts` | Resolves home/data/database paths; no schema validation or advanced configuration validation is present in this file. |
+| Local application paths/config | Partial | `src/config.ts`, `src/db/database.ts` | Resolves home, database, workspace, backup, log, and temp directories under one Scopy home and creates them on database initialization. Broader typed environment validation remains open. |
 | SQLite connection and versioned migrations | Implemented | `src/db/database.ts` | Migrations v1-v8 create tasks/audit, permissions/approvals, execution/checkpoints, memory, orchestrator plans/runs, typed plan actions, and project/task relationships. |
 | Project repository | Implemented, initial lifecycle | `src/projects/project-repository.ts`, `src/db/database.ts` | `tests/projects.test.ts`; projects can be created, listed, inspected, and archived. Archived projects cannot receive new tasks; existing linked tasks remain accessible. |
 | SQLite backup create/verify | Implemented, no restore command yet | `src/backup/backup-service.ts`, `src/cli.ts` | `tests/backup.test.ts`; uses SQLite online backup, integrity-checks the snapshot, reports schema version and task/project counts, and only verifies generated filenames under the Scopy backups directory. Restore is not implemented. |

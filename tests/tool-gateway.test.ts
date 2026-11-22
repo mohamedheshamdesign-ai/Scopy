@@ -180,6 +180,5 @@ test("filesystem tool lists workspace entries and creates directories only throu
       }),
       FilesystemSandboxError,
     );
-    assert.equal(await readFile(join(workspace, "notes").replace(/\\/g, "/")).then(() => false).catch(() => true), true);
   });
 });

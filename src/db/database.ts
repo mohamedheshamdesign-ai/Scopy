@@ -311,7 +311,9 @@ function applyMigrations(database: ScopyDatabase): void {
 }
 
 export function openDatabase(config: ScopyConfig): ScopyDatabase {
-  mkdirSync(config.dataDir, { recursive: true });
+  for (const directory of [config.dataDir, config.workspaceDir, config.backupsDir, config.logsDir, config.tempDir]) {
+    mkdirSync(directory, { recursive: true });
+  }
   mkdirSync(dirname(config.databasePath), { recursive: true });
 
   const database = new Database(config.databasePath, {
