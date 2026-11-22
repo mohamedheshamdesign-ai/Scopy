@@ -91,7 +91,7 @@ Build small, testable vertical slices. Every consequential action must pass the 
 
 ## Phase 6 — Workspace and integrations
 
-1. [ ] Native desktop packaging and lifecycle. A local browser-served dashboard now provides initial workspace views.
+1. [x] Installable local PWA workspace with standalone display mode and local session cookie. Native desktop packaging and process lifecycle remain open.
 2. [x] Initial project/task/run/memory/approval/permission/audit dashboard views.
 3. [ ] Provider and permission settings UI.
 4. [x] Initial local stdio MCP integration bridge with explicit environment-variable pass-through and exact approval for each tool call.
