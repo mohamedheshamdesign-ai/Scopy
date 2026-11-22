@@ -196,7 +196,7 @@ export class DashboardServer {
         "cache-control": "no-store",
         "x-content-type-options": "nosniff",
         "referrer-policy": "no-referrer",
-        "content-security-policy": "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; worker-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'",
       });
       response.end(dashboardHtml);
       return;
