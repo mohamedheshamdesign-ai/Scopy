@@ -33,7 +33,7 @@ This document describes code presence, not a claim that the current local checko
 
 - Orchestrator execution/run lifecycle, step execution, retries, and checkpoint recovery.
 - Agent registry and multi-agent delegation.
-- Agent registry and specialist agents.
+- Specialist agent implementations (Research, Developer, Business, Design, Marketing, Operations).
 - Browser automation.
 - Windows computer/UI control.
 - Terminal command execution tool.
