@@ -66,6 +66,14 @@ export class PermissionRepository {
     return save();
   }
 
+  list(): PermissionRule[] {
+    const rows = this.database.prepare(`
+      SELECT * FROM permission_rules
+      ORDER BY actor_id ASC, tool_name ASC, action_name ASC, target_pattern ASC
+    `).all() as PermissionRuleRow[];
+    return rows.map(mapRule);
+  }
+
   findMatching(actorId: string, tool: string, action: string, target: string): PermissionRule | null {
     const rows = this.database.prepare(`
       SELECT * FROM permission_rules

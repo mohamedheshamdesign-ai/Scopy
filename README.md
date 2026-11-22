@@ -42,6 +42,8 @@ npm run dev -- project list
 npm run dev -- task add "Prepare brand strategy" --project <PROJECT_ID>
 npm run dev -- task update <TASK_ID> status in_progress
 npm run dev -- backup create
+npm run dev -- permission list
+npm run dev -- audit list
 ```
 
 Projects can be created, listed, inspected, and archived. Tasks can be linked to active projects, filtered by project/status, and updated. Use `project show <PROJECT_ID>` to inspect a project and `project archive <PROJECT_ID>` to archive it without deleting linked tasks. Run `backup create` to create a SQLite snapshot under `E:\\Scopy\\backups`, then `backup verify <BACKUP_FILENAME>` to check its integrity. Backup restore is not available yet.
@@ -85,6 +87,8 @@ Do not commit directly to `main`.
 - [Windows Local AI Runtime](docs/LOCAL_AI_WINDOWS.md)
 
 ## Current milestone
+
+`permission list` inspects stored policy rules, `memory archive <MEMORY_ID>` archives a memory record, and `audit list` inspects recent audit events (filter with `--entity`, `--id`, and `--limit`).
 
 The local foundation includes task and project persistence, versioned SQLite migrations, SQLite backup creation and integrity verification, a central permission policy engine, exact-action approval records, one-time approval consumption, audit events, local AI chat, typed planning, and guarded filesystem execution. GitHub Actions validates the project on Windows and Linux for changes to `dev`.
 

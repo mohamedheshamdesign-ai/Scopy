@@ -11,6 +11,7 @@ import { PlanRunRepository } from "./orchestrator/run-repository.js";
 import { TaskNotFoundError, TaskRepository, type TaskPriority, type TaskStatus } from "./tasks/task-repository.js";
 import { ProjectRepository } from "./projects/project-repository.js";
 import { BackupService } from "./backup/backup-service.js";
+import { AuditRepository } from "./audit/audit-repository.js";
 import { join } from "node:path";
 import { ApprovalService } from "./permissions/approval-service.js";
 import { ExecutionGuard } from "./permissions/execution-guard.js";
@@ -44,6 +45,9 @@ Commands:
   npm run dev -- memory add <type> <scope> "Memory content"
   npm run dev -- memory search "Search query"
   npm run dev -- memory list
+  npm run dev -- memory archive <memory-id>
+  npm run dev -- permission list
+  npm run dev -- audit list [--entity <type>] [--id <entity-id>] [--limit <1-500>]
   npm run dev -- plan create "Describe the goal to plan"
   npm run dev -- plan list
   npm run dev -- plan show <plan-id>
@@ -162,6 +166,27 @@ async function main(): Promise<void> {
       return;
     }
 
+    if (command === "audit") {
+      if (subcommand !== "list") throw new Error("Usage: audit list [--entity <type>] [--id <entity-id>] [--limit <1-500>]");
+      const readOption = (name: string): string | undefined => {
+        const index = args.indexOf(name);
+        if (index < 0) return undefined;
+        const value = args[index + 1];
+        if (!value || value.startsWith("--")) throw new Error("Provide a value after " + name + ".");
+        return value;
+      };
+      const rawLimit = readOption("--limit");
+      const limit = rawLimit === undefined ? 100 : Number(rawLimit);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error("Audit limit must be between 1 and 500.");
+      const audit = new AuditRepository(database);
+      console.log(JSON.stringify(audit.list({
+        ...(readOption("--entity") ? { entityType: readOption("--entity") } : {}),
+        ...(readOption("--id") ? { entityId: readOption("--id") } : {}),
+        limit,
+      }), null, 2));
+      return;
+    }
+
     if (command === "memory") {
       const memories = new MemoryRepository(database);
       if (subcommand === "add") {
@@ -189,6 +214,13 @@ async function main(): Promise<void> {
       }
       if (subcommand === "list") {
         console.log(JSON.stringify(memories.list(), null, 2));
+        return;
+      }
+      if (subcommand === "archive") {
+        const id = args[0];
+        if (!id) throw new Error("Usage: memory archive <memory-id>");
+        const archived = memories.archive(id);
+        console.log(JSON.stringify({ id, archived }, null, 2));
         return;
       }
       printUsage();
@@ -287,13 +319,17 @@ async function main(): Promise<void> {
     }
 
     if (command === "permission") {
-      if (subcommand !== "set") throw new Error("Usage: permission set <actor> <tool> <action> <target-pattern> <allow|deny|approval_required>");
+      const permissions = new PermissionRepository(database);
+      if (subcommand === "list") {
+        console.log(JSON.stringify(permissions.list(), null, 2));
+        return;
+      }
+      if (subcommand !== "set") throw new Error("Usage: permission <list|set> ...");
       const [actorId, tool, action, targetPattern, effect] = args;
       if (!actorId || !tool || !action || !targetPattern ||
         (effect !== "allow" && effect !== "deny" && effect !== "approval_required")) {
         throw new Error("Usage: permission set <actor> <tool> <action> <target-pattern> <allow|deny|approval_required>");
       }
-      const permissions = new PermissionRepository(database);
       console.log(JSON.stringify(permissions.setRule({
         actorId, tool, action, targetPattern, effect,
       }), null, 2));
