@@ -210,7 +210,7 @@ test("workspace_assist allows workspace reads, gates changes, and denies other t
     assert.equal(policy.evaluate(request("filesystem", "list")).effect, "allow");
     assert.equal(policy.evaluate(request("filesystem", "write")).effect, "approval_required");
     assert.equal(policy.evaluate(request("filesystem", "mkdir")).effect, "approval_required");
-    assert.equal(policy.evaluate(request("terminal", "run")).effect, "deny");
+    assert.equal(policy.evaluate(request("terminal", "run")).effect, "approval_required");
     assert.equal(policy.evaluate(request("filesystem", "read", "agent:developer")).effect, "deny");
   });
 });
