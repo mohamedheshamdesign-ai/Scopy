@@ -29,6 +29,7 @@ src/cli.ts
 src/config.ts
 src/db/database.ts
 src/memory/memory-repository.ts
+src/project/project-context.ts
 src/permissions/approval-service.ts
 src/permissions/execution-guard.ts
 src/permissions/permission-repository.ts
@@ -43,6 +44,7 @@ tests/chat-context.test.ts
 tests/local-router-timeout.test.ts
 tests/memory-repository.test.ts
 tests/permissions.test.ts
+tests/project-context.test.ts
 tests/runtime-engine.test.ts
 tests/task-repository.test.ts
 tests/tool-gateway.test.ts
