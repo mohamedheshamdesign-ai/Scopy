@@ -7,7 +7,7 @@ import { ToolGateway, type ToolExecutionContext } from "./tool-gateway.js";
 const ALLOWED_EXECUTABLES = new Set([
   "node", "node.exe", "git", "git.exe", "python", "python.exe", "powershell.exe",
 ]);
-const MAX_OUTPUT_BYTES = 64 * 1024;
+const MAX_OUTPUT_BYTES = 48 * 1024;
 
 interface TerminalPayload {
   readonly executable: string;
@@ -123,7 +123,6 @@ export class TerminalTool {
         }
         finish(undefined, {
           executable: payload.executable,
-          args: payload.args,
           workingDirectory: cwd,
           exitCode: code,
           signal,
