@@ -16,7 +16,6 @@ async function withRuntime(run: (context: {
   runtime: RuntimeEngine;
   gateway: ToolGateway;
   rules: PermissionRepository;
-  database: ReturnType<typeof openDatabase>;
 }) => Promise<void>): Promise<void> {
   const home = mkdtempSync(join(tmpdir(), "scopy-runtime-test-"));
   const database = openDatabase(loadConfig(home));
@@ -26,7 +25,7 @@ async function withRuntime(run: (context: {
   const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
   const runtime = new RuntimeEngine(database, gateway);
   try {
-    await run({ runtime, gateway, rules, database });
+    await run({ runtime, gateway, rules });
   } finally {
     database.close();
     rmSync(home, { recursive: true, force: true });
@@ -61,14 +60,15 @@ test("runtime enforces timeout and persists timed_out status", async () => {
   await withRuntime(async ({ runtime, gateway, rules }) => {
     allow(rules, "slow", "run");
     gateway.register("slow", "Wait until aborted", (_request, context) => waitForAbort(context));
+    let runId = "";
     await assert.rejects(
-      runtime.execute(request("slow", "run"), { timeoutMs: 20 }),
+      runtime.execute(request("slow", "run"), {
+        timeoutMs: 20,
+        onStarted: (id) => { runId = id; },
+      }),
       RuntimeTimeoutError,
     );
-    const rows = runtime["database"].prepare(
-      "SELECT status FROM execution_runs ORDER BY started_at DESC LIMIT 1",
-    ).get() as { status: string };
-    assert.equal(rows.status, "timed_out");
+    assert.equal(runtime.getRun(runId)?.status, "timed_out");
   });
 });
 
