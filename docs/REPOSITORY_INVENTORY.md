@@ -34,6 +34,7 @@ src/backup/backup-service.ts
 src/cli.ts
 src/config.ts
 src/db/database.ts
+src/doctor/doctor.ts
 src/logging/scopy-logger.ts
 src/memory/memory-repository.ts
 src/orchestrator/action-resolver.ts
@@ -58,6 +59,7 @@ tests/agents.test.ts
 tests/audit.test.ts
 tests/backup.test.ts
 tests/config.test.ts
+tests/doctor.test.ts
 tests/chat-context.test.ts
 tests/local-router-timeout.test.ts
 tests/logger.test.ts

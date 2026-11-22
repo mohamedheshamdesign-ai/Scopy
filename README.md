@@ -37,6 +37,7 @@ Run the development CLI:
 npm run dev -- health
 npm run dev -- task add "Prepare Scopy project brief"
 npm run dev -- task list
+npm run dev -- task show <TASK_ID>
 npm run dev -- project create "Personal Brand" "Brand design projects"
 npm run dev -- project list
 npm run dev -- project update <PROJECT_ID> description "Updated project description"

@@ -30,6 +30,7 @@ Commands:
   npm run dev -- health
   npm run dev -- task add "Task title"
   npm run dev -- task list
+  npm run dev -- task show <task-id>
   npm run dev -- task complete <task-id>
   npm run dev -- task update <task-id> <title|description|status|priority|project> <value>
   npm run dev -- project create "Project name" ["Description"]
@@ -313,7 +314,16 @@ async function main(): Promise<void> {
         console.log(JSON.stringify({ project, tasks }, null, 2));
         return;
       }
-      if (subcommand === "update") {
+      if (subcommand === "show") {
+      const id = args[0];
+      if (!id) throw new Error("Usage: task show <task-id>");
+      const task = tasks.getById(id);
+      if (!task) throw new TaskNotFoundError(id);
+      console.log(JSON.stringify(task, null, 2));
+      return;
+    }
+
+    if (subcommand === "update") {
         const [id, field, ...valueParts] = args;
         const value = valueParts.join(" ").trim();
         if (!id || !field || !value) throw new Error("Usage: project update <project-id> <name|description> <value>");
