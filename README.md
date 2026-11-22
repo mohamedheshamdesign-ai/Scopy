@@ -86,4 +86,6 @@ The future filesystem adapter must also resolve the real path (including symlink
 
 Consequential actions configured as `approval_required` must have an approved request whose SHA-256 action fingerprint matches the exact actor, tool, action, target, and payload. The approval is consumed once before the handler runs. Policy decisions are re-evaluated at execution time.
 
-This is the policy and approval core, not yet a complete tool gateway. Real agents and tool adapters must be wired to call the execution guard before any side effect; until then, do not treat the engine as system-wide enforcement. Reviewer identity is currently supplied by the trusted local application layer; authenticated user identity is a later integration task.
+The initial Tool Gateway is now in place. Registered tools can only be invoked through the gateway, which routes execution through the central guard. The first adapter is a UTF-8 filesystem tool scoped to `E:\\Scopy\\workspace` by default (the `workspace` directory under the configured Scopy home). It checks resolved paths and symlink destinations before reads and writes. The filesystem adapter is a first security boundary, not an OS-level sandbox: a future hardened adapter must address local time-of-check/time-of-use races and use OS-level isolation where appropriate.
+
+The current gateway is an internal application API; no agent or external integration is connected yet. Reviewer identity is currently supplied by the trusted local application layer; authenticated user identity is a later integration task.
