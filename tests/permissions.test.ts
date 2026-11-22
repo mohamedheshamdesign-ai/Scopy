@@ -227,8 +227,8 @@ test("workspace_assist routes write actions through exact approval", async () =>
     let executed = false;
     await assert.rejects(guard.execute(action, () => { executed = true; }), ApprovalRequiredError);
     assert.equal(executed, false);
-    const pending = approvals.listPending()[0];
-    assert.ok(pending);
+    const pending = approvals.request(action);
+    assert.equal(pending.status, "pending");
     approvals.approve(pending.id, "user:local");
     const result = await guard.execute(action, () => { executed = true; return "written"; }, pending.id);
     assert.equal(result, "written");
