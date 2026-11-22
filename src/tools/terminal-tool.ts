@@ -108,8 +108,8 @@ export class TerminalTool {
         if (stream === "stdout") stdout += chunk.toString("utf8");
         else stderr += chunk.toString("utf8");
       };
-      child.stdout.on("data", (chunk: Buffer) => collect(chunk, "stdout"));
-      child.stderr.on("data", (chunk: Buffer) => collect(chunk, "stderr"));
+      child.stdout?.on("data", (chunk: Buffer) => collect(chunk, "stdout"));
+      child.stderr?.on("data", (chunk: Buffer) => collect(chunk, "stderr"));
       child.once("error", (error) => finish(error));
       child.once("close", (code, signal) => {
         if (timedOut) {
