@@ -47,6 +47,10 @@ export class ToolGateway {
     approvalId?: string,
     context?: ToolExecutionContext,
   ): Promise<T> {
+    if (context?.signal.aborted) {
+      const reason = context.signal.reason;
+      throw reason instanceof Error ? reason : new Error("Tool execution was cancelled before it started.");
+    }
     const handler = this.handlers.get(request.tool);
     if (!handler) throw new Error(`Unknown tool: ${request.tool}`);
     return this.guard.execute(
