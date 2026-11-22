@@ -14,12 +14,12 @@ Build a small, testable vertical slice first. Each phase must have acceptance cr
 - [x] Add Git ignore rules for local runtimes, secrets, databases, and generated files.
 - [x] Create and push `main` and `dev`.
 - [x] Confirm clean working tree and upstream tracking.
-- [ ] Add architecture and implementation documentation.
-- [ ] Add Node/TypeScript project configuration and repeatable scripts.
+- [x] Add architecture and implementation documentation.
+- [x] Add Node/TypeScript project configuration and repeatable scripts.
 - [x] Add automated test runner and CI validation on Windows and Linux via GitHub Actions.
-- [ ] Confirm the actual Node.js version and package manager on the target PC.
+- [x] Confirm the actual Node.js version and package manager on the target PC (Node 24.21.0, npm 11.19.0 reported).
 
-**Acceptance:** clean install, typecheck, lint, and tests run locally and in CI; no local data or secrets are tracked.
+**Acceptance:** clean install, typecheck, build, and tests run locally and in CI; no local data or secrets are tracked. A dedicated lint script is not currently configured.
 
 ## Phase 1 — Core foundation
 

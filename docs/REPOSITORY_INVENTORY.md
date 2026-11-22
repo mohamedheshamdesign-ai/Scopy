@@ -14,8 +14,10 @@ README.md
 backups/.gitkeep
 data/.gitkeep
 docs/ARCHITECTURE.md
+docs/IMPLEMENTED_FEATURES.md
 docs/IMPLEMENTATION_PLAN.md
 docs/LOCAL_AI_WINDOWS.md
+docs/PLANNED_FEATURES.md
 docs/decisions/0001-sqlite-driver.md
 package.json
 scripts/connect-local-ai.ps1
