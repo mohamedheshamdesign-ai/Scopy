@@ -159,7 +159,7 @@ $("mcpRequest").addEventListener("click",async()=>{
   if(!args||typeof args!=="object"||Array.isArray(args))throw new Error("MCP arguments must be a JSON object.");
   if(!window.selectedMcpServer||!$("mcpTool").value)throw new Error("Select an MCP server and tool first.");
   pendingMcp={serverId:window.selectedMcpServer,toolName:$("mcpTool").value,arguments:args};
-  const a=await api("/api/mcp/requests","POST",pendingMcp);pendingMcp.requestId=a.id;
+  const a=await api("/api/mcp/requests","POST",pendingMcp);pendingMcp.requestId=a.id;pendingMcp.serverFingerprint=a.payload.serverFingerprint;
   $("mcpState").textContent="Approval request "+a.id+" created. Inspect its exact arguments in Approvals.";
   $("mcpExecute").disabled=true;await refresh();
  }catch(e){showNotice(e.message,true);}
