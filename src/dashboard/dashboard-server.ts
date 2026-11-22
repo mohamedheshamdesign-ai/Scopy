@@ -381,10 +381,12 @@ export class DashboardServer {
     if (method === "POST" && path === "/api/plans") {
       const input = await body(request);
       const goal = stringField(input, "goal", 2000);
+      const agentId = typeof input.agentId === "string" ? input.agentId : "assistant";
+      const agent = new AgentRegistry().get(agentId);
       const router = createLocalAiRouter(this.database);
       const provider = router.list()[0];
       if (!provider) throw new Error("No local AI provider is configured.");
-      json(response, 201, await generateDraftPlan(router, provider.id, plans, goal));
+      json(response, 201, await generateDraftPlan(router, provider.id, plans, goal, agent.name + ": " + agent.description + "\n" + agent.systemPrompt));
       return;
     }
 
