@@ -22,6 +22,7 @@ import { RuntimeEngine } from "./runtime/runtime-engine.js";
 import { FilesystemTool } from "./tools/filesystem-tool.js";
 import { ToolGateway } from "./tools/tool-gateway.js";
 import { PlanStepExecutor } from "./orchestrator/step-executor.js";
+import { startLocalApp } from "./app/local-app.js";
 
 function printUsage(): void {
   console.log(`
@@ -30,6 +31,7 @@ Scopy local core
 Commands:
   npm run dev -- health
   npm run dev -- doctor
+  npm run dev -- app start [port]
   npm run dev -- task add "Task title"
   npm run dev -- task list
   npm run dev -- task show <task-id>
@@ -108,6 +110,26 @@ async function main(): Promise<void> {
   logger.info("cli.command.started", { command: command ?? "unknown", subcommand: subcommand ?? null });
 
   try {
+
+    if (command === "app") {
+      if (subcommand !== "start") throw new Error("Usage: app start [port]");
+      const port = args[0] === undefined ? 4317 : Number(args[0]);
+      const app = await startLocalApp(database, config, { port });
+      console.log("Scopy workspace is running at " + app.url);
+      console.log("This local session is protected by a one-time in-memory token.");
+      console.log("Keep this terminal open. Press Ctrl+C to stop Scopy.");
+      await new Promise<void>((resolve) => {
+        let closing = false;
+        const shutdown = () => {
+          if (closing) return;
+          closing = true;
+          void app.close().finally(resolve);
+        };
+        process.once("SIGINT", shutdown);
+        process.once("SIGTERM", shutdown);
+      });
+      return;
+    }
 
     if (command === "health") {
       console.log(JSON.stringify({
