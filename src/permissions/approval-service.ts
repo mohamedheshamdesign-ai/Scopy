@@ -110,6 +110,14 @@ export class ApprovalService {
     return row ? mapApproval(row) : null;
   }
 
+  listAll(limit = 100): ApprovalRequest[] {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error("Approval list limit must be between 1 and 500.");
+    const rows = this.database.prepare(
+      "SELECT * FROM approval_requests ORDER BY requested_at DESC, id DESC LIMIT ?",
+    ).all(limit) as ApprovalRow[];
+    return rows.map(mapApproval);
+  }
+
   listPending(): ApprovalRequest[] {
     const rows = this.database.prepare(
       "SELECT * FROM approval_requests WHERE status = 'pending' ORDER BY requested_at ASC",

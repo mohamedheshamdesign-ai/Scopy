@@ -43,6 +43,8 @@ npm run dev -- task add "Prepare brand strategy" --project <PROJECT_ID>
 npm run dev -- task update <TASK_ID> status in_progress
 npm run dev -- backup create
 npm run dev -- permission list
+npm run dev -- permission remove <RULE_ID>
+npm run dev -- approval list --all
 npm run dev -- audit list
 npm run dev -- agent list
 npm run dev -- agent run brand-designer "Create a brand identity direction for a premium design studio"
@@ -90,7 +92,7 @@ Do not commit directly to `main`.
 
 ## Current milestone
 
-`agent list` shows built-in specialists; `agent run <AGENT_ID> "prompt"` runs an advisory-only profile through the local model and relevant memory. Agents currently have no tools, browser, or execution permissions. `permission list` inspects stored policy rules, `memory archive <MEMORY_ID>` archives a memory record, and `audit list` inspects recent audit events (filter with `--entity`, `--id`, and `--limit`).
+`agent list` shows built-in specialists; `agent run <AGENT_ID> "prompt"` runs an advisory-only profile through the local model and relevant memory. Agents currently have no tools, browser, or execution permissions. `permission list` inspects stored policy rules, `permission remove <RULE_ID>` revokes a stored rule, and `approval list --all` shows approval history including consumed requests. `memory archive <MEMORY_ID>` archives a memory record, and `audit list` inspects recent audit events (filter with `--entity`, `--id`, and `--limit`).
 
 The local foundation includes task and project persistence, versioned SQLite migrations, SQLite backup creation and integrity verification, a central permission policy engine, exact-action approval records, one-time approval consumption, audit events, local AI chat, typed planning, and guarded filesystem execution. GitHub Actions validates the project on Windows and Linux for changes to `dev`.
 

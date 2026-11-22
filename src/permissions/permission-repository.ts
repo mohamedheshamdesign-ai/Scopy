@@ -74,6 +74,26 @@ export class PermissionRepository {
     return rows.map(mapRule);
   }
 
+  removeRule(id: string): boolean {
+    const existing = this.database.prepare("SELECT id, actor_id, tool_name, action_name, target_pattern FROM permission_rules WHERE id = ?")
+      .get(id) as { id: string; actor_id: string; tool_name: string; action_name: string; target_pattern: string } | undefined;
+    if (!existing) return false;
+    const now = new Date().toISOString();
+    const remove = this.database.transaction(() => {
+      const result = this.database.prepare("DELETE FROM permission_rules WHERE id = ?").run(id);
+      if (result.changes !== 1) return false;
+      this.database.prepare(`
+        INSERT INTO audit_events (id, event_type, entity_type, entity_id, payload_json, created_at)
+        VALUES (?, 'permission.rule.removed', 'permission_rule', ?, ?, ?)
+      `).run(randomUUID(), id, JSON.stringify({
+        actorId: existing.actor_id, tool: existing.tool_name,
+        action: existing.action_name, targetPattern: existing.target_pattern,
+      }), now);
+      return true;
+    });
+    return remove();
+  }
+
   findMatching(actorId: string, tool: string, action: string, target: string): PermissionRule | null {
     const rows = this.database.prepare(`
       SELECT * FROM permission_rules

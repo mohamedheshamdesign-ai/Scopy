@@ -1,3 +1,4 @@
+import { AgentRegistry, buildAgentMessages } from "./agents/agent-registry.js";
 import { createLocalAiRouter } from "./ai/create-local-router.js";
 import { listLocalModels } from "./ai/local-openai-provider.js";
 import { loadConfig } from "./config.js";
@@ -41,11 +42,15 @@ Commands:
   npm run dev -- ai health
   npm run dev -- ai chat "Your prompt"
   npm run dev -- ai benchmark [max-output-tokens]
+  npm run dev -- agent list
+  npm run dev -- agent show <agent-id>
+  npm run dev -- agent run <agent-id> "Your prompt"
   npm run dev -- memory add <type> <scope> "Memory content"
   npm run dev -- memory search "Search query"
   npm run dev -- memory list
   npm run dev -- memory archive <memory-id>
   npm run dev -- permission list
+  npm run dev -- permission remove <rule-id>
   npm run dev -- audit list [--entity <type>] [--id <entity-id>] [--limit <1-500>]
   npm run dev -- plan create "Describe the goal to plan"
   npm run dev -- plan list
@@ -53,7 +58,7 @@ Commands:
   npm run dev -- plan approve <plan-id>
   npm run dev -- plan reject <plan-id>
   npm run dev -- permission set <actor> <tool> <action> <target-pattern> <allow|deny|approval_required>
-  npm run dev -- approval list
+  npm run dev -- approval list [--all]
   npm run dev -- approval approve <approval-id>
   npm run dev -- approval reject <approval-id>
   npm run dev -- run start <approved-plan-id>
@@ -167,6 +172,41 @@ async function main(): Promise<void> {
       printUsage();
       process.exitCode = 1;
       return;
+    }
+
+    if (command === "agent") {
+      const registry = new AgentRegistry();
+      if (subcommand === "list") {
+        console.log(JSON.stringify(registry.list().map(({ systemPrompt, ...agent }) => agent), null, 2));
+        return;
+      }
+      const agentId = args[0];
+      if (!agentId) throw new Error("Usage: agent <list|show|run> <agent-id> [prompt]");
+      const profile = registry.get(agentId);
+      if (subcommand === "show") {
+        console.log(JSON.stringify(profile, null, 2));
+        return;
+      }
+      if (subcommand === "run") {
+        const prompt = args.slice(1).join(" ").trim();
+        if (!prompt) throw new Error('Usage: agent run <agent-id> "Your prompt"');
+        const router = createLocalAiRouter(database);
+        const provider = router.list()[0];
+        if (!provider) throw new Error("No AI provider is configured.");
+        const projectContext = await loadProjectContext();
+        const memories = new MemoryRepository(database).search(prompt, { limit: 5 });
+        const result = await router.generate(provider.id, {
+          messages: buildAgentMessages(profile, prompt, projectContext, memories),
+          temperature: 0.2,
+          maxOutputTokens: 1_800,
+        }, {
+          actorId: "user:local",
+          purpose: "local agent chat: " + profile.id,
+        });
+        console.log(result.text);
+        return;
+      }
+      throw new Error("Usage: agent <list|show|run> <agent-id> [prompt]");
     }
 
     if (command === "audit") {
@@ -329,7 +369,13 @@ async function main(): Promise<void> {
         console.log(JSON.stringify(permissions.list(), null, 2));
         return;
       }
-      if (subcommand !== "set") throw new Error("Usage: permission <list|set> ...");
+      if (subcommand === "remove") {
+        const id = args[0];
+        if (!id) throw new Error("Usage: permission remove <rule-id>");
+        console.log(JSON.stringify({ id, removed: permissions.removeRule(id) }, null, 2));
+        return;
+      }
+      if (subcommand !== "set") throw new Error("Usage: permission <list|set|remove> ...");
       const [actorId, tool, action, targetPattern, effect] = args;
       if (!actorId || !tool || !action || !targetPattern ||
         (effect !== "allow" && effect !== "deny" && effect !== "approval_required")) {
@@ -346,7 +392,7 @@ async function main(): Promise<void> {
       const policy = new PolicyEngine(permissions);
       const approvals = new ApprovalService(database, policy);
       if (subcommand === "list") {
-        console.log(JSON.stringify(approvals.listPending(), null, 2));
+        console.log(JSON.stringify(args.includes("--all") ? approvals.listAll() : approvals.listPending(), null, 2));
         return;
       }
       const id = args[0];

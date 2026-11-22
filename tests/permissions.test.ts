@@ -168,3 +168,36 @@ test("approval_required wins over an equally specific allow rule", async () => {
     }).effect, "approval_required");
   });
 });
+
+
+test("permission rules can be listed and removed with an audit event", async () => {
+  await withServices(async ({ rules, database }) => {
+    const rule = rules.setRule({
+      actorId: "user:local", tool: "filesystem", action: "write",
+      targetPattern: "notes/*", effect: "approval_required",
+    });
+    assert.equal(rules.list().some((item) => item.id === rule.id), true);
+    assert.equal(rules.removeRule(rule.id), true);
+    assert.equal(rules.removeRule(rule.id), false);
+    assert.equal(rules.list().some((item) => item.id === rule.id), false);
+    const event = database.prepare(
+      "SELECT event_type FROM audit_events WHERE entity_id = ? ORDER BY rowid DESC LIMIT 1",
+    ).get(rule.id) as { event_type: string };
+    assert.equal(event.event_type, "permission.rule.removed");
+  });
+});
+
+test("approval history includes pending, reviewed, and consumed states", async () => {
+  await withServices(async ({ rules, approvals, guard }) => {
+    rules.setRule({
+      actorId: "agent:marketing", tool: "social", action: "publish",
+      targetPattern: "account:brand", effect: "approval_required",
+    });
+    const pending = approvals.request(sensitiveAction);
+    assert.equal(approvals.listAll().some((item) => item.id === pending.id && item.status === "pending"), true);
+    approvals.approve(pending.id, "owner");
+    assert.equal(approvals.listAll().some((item) => item.id === pending.id && item.status === "approved"), true);
+    await guard.execute(sensitiveAction, () => "published", pending.id);
+    assert.equal(approvals.listAll().some((item) => item.id === pending.id && item.status === "consumed"), true);
+  });
+});
