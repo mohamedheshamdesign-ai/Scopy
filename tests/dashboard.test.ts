@@ -96,7 +96,7 @@ test("dashboard uses loopback auth, issues an HttpOnly session, and serves a PWA
 
 
 test("dashboard inline client script parses as JavaScript", () => {
-  const match = dashboardHtml.match(/<script>([\\s\\S]*?)<\\/script>/);
+  const match = dashboardHtml.match(/<script>([\s\S]*?)<\/script>/);
   assert.ok(match?.[1], "dashboard should contain its inline client script");
   assert.doesNotThrow(() => new Script(match[1]!));
 });
