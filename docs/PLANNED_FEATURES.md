@@ -34,7 +34,7 @@
 - Per-action risk checks and explicit approvals for all desktop operations.
 
 ## Phase 6 — Workspace and integrations
-- Native desktop packaging and lifecycle.
+- Native desktop packaging and lifecycle beyond the installable PWA.
 - Expand dashboard provider/permission settings and local workspace views.
 - Built-in OAuth flows and remote HTTP MCP transports.
 - Provider-specific integration UX, persistent server lifecycle/health management, and more granular tool capability scopes.
