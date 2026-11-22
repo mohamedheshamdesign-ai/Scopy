@@ -21,6 +21,7 @@ import { RuntimeEngine } from "../runtime/runtime-engine.js";
 import { ToolGateway } from "../tools/tool-gateway.js";
 import { FilesystemTool } from "../tools/filesystem-tool.js";
 import { TerminalTool } from "../tools/terminal-tool.js";
+import { BrowserTool } from "../tools/browser-tool.js";
 import { PlanStepExecutor } from "../orchestrator/step-executor.js";
 import { BackupService } from "../backup/backup-service.js";
 import { LocalBrowserSession } from "../browser/browser-session.js";
@@ -350,6 +351,7 @@ export class DashboardServer {
       const gateway = new ToolGateway(new ExecutionGuard(this.database, policy, approvals));
       new FilesystemTool({ workspaceRoot: this.config.workspaceDir }).register(gateway);
       new TerminalTool(this.config.workspaceDir).register(gateway);
+      new BrowserTool(this.config.homeDir).register(gateway);
       const runtime = new RuntimeEngine(this.database, gateway);
       const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
       const result = await executor.executeReadySteps(runExecute[1]!, {}, optionalString(input, "approvalId", 36));
