@@ -67,13 +67,13 @@ export const dashboardHtml = String.raw`<!doctype html>
 </section>
 <section class="section" id="page-computer">
  <div class="panel"><div class="panelhead"><h2>Windows computer control</h2><span class="pill warn">APPROVAL REQUIRED</span></div>
- <div class="notice">Uses Windows UI Automation through a fixed PowerShell script. Scopy can inspect a window's controls, invoke a uniquely matched control, or set a value. Every action requires approval. It does not use coordinates, capture screenshots, or send global keyboard shortcuts.</div>
- <div class="form"><input id="computerWindow" class="wide" placeholder="Exact window title, e.g. Untitled - Notepad"><select id="computerAction"><option value="snapshot">Inspect controls</option><option value="invoke">Invoke control</option><option value="set_value">Set control value</option></select><input id="computerLimit" type="number" value="100" min="1" max="300" style="max-width:120px"></div>
+ <div class="notice">Uses Windows UI Automation through a fixed PowerShell script. Scopy can inspect a window's controls, invoke a uniquely matched control, or set a value. Every action requires approval. It does not use raw screen coordinates or send unrestricted global keyboard shortcuts. Window screenshots are bounded and approval-gated.</div>
+ <div class="form"><input id="computerWindow" class="wide" placeholder="Exact window title, e.g. Untitled - Notepad"><select id="computerAction"><option value="snapshot">Inspect controls</option><option value="invoke">Invoke control</option><option value="set_value">Set control value</option><option value="screenshot">Capture window screenshot</option></select><input id="computerLimit" type="number" value="100" min="1" max="300" style="max-width:120px"></div>
  <div class="form"><input id="computerAutomationId" placeholder="Automation ID (preferred)"><input id="computerName" placeholder="Or exact control name"></div>
  <div class="form"><textarea id="computerValue" class="wide" placeholder="Value to set (set_value only)"></textarea></div>
  <div class="actions"><button class="primary" id="computerRequest">Request exact approval</button><button id="computerExecute" disabled>Execute approved action</button></div>
  <div id="computerState" class="detail" style="margin-top:12px"></div>
- <pre id="computerOutput" style="white-space:pre-wrap;max-height:420px;overflow:auto;background:#06111d;padding:12px;border-radius:9px;font-size:11px"></pre>
+ <pre id="computerOutput" style="white-space:pre-wrap;max-height:420px;overflow:auto;background:#06111d;padding:12px;border-radius:9px;font-size:11px"></pre><img id="computerShot" alt="Approved Windows window screenshot" style="display:none;max-width:100%;border-radius:10px;margin-top:12px">
  </div>
 </section>
 <section class="section" id="page-agents"><div class="panel"><div class="panelhead"><h2>Agent registry</h2><span class="pill warn">ADVISORY MODE</span></div><p class="detail">Each specialist has a defined role. Tool execution remains centralized in Scopy's permission and approval layer.</p><div class="list" id="agentList"></div></div></section>
@@ -146,6 +146,7 @@ $("computerRequest").addEventListener("click",async()=>{
   const windowTitle=$("computerWindow").value;
   let payload={};
   if(computerAction==="snapshot")payload={limit:Number($("computerLimit").value||100)};
+  else if(computerAction==="screenshot")payload={};
   else{
    const automationId=$("computerAutomationId").value.trim();
    const name=$("computerName").value.trim();
@@ -165,7 +166,7 @@ $("computerExecute").addEventListener("click",async()=>{
  try{
   $("computerExecute").disabled=true;$("computerState").textContent="Executing approved Windows UI Automation action…";
   const r=await api("/api/computer/execute","POST",{...pendingComputer,approvalId:pendingComputer.approvalId});
-  $("computerOutput").textContent=JSON.stringify(r.output,null,2);$("computerState").textContent="Completed in "+r.durationMs+" ms.";pendingComputer=null;await refresh();
+  if(pendingComputer.computerAction==="screenshot"&&r.output&&r.output.data){$("computerShot").src="data:"+r.output.mimeType+";base64,"+r.output.data;$("computerShot").style.display="block";$("computerOutput").textContent="Captured "+r.output.width+"×"+r.output.height+" window screenshot.";}else{$("computerOutput").textContent=JSON.stringify(r.output,null,2);}$("computerState").textContent="Completed in "+r.durationMs+" ms.";pendingComputer=null;await refresh();
  }catch(e){$("computerState").textContent=e.message;showNotice(e.message,true);}finally{$("computerExecute").disabled=true;}
 });
 
