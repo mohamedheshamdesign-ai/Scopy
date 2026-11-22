@@ -81,13 +81,16 @@ export class PermissionRepository {
     );
     if (matching.length === 0) return null;
 
-    const score = (row: PermissionRuleRow): number =>
-      Number(row.actor_id !== "*") * 1_000_000 +
-      Number(row.tool_name !== "*") * 100_000 +
-      Number(row.action_name !== "*") * 10_000 +
-      (row.target_pattern === "*" ? 0 :
-        row.target_pattern.endsWith("*") ? row.target_pattern.length :
-          10_000 + row.target_pattern.length);
+    const score = (row: PermissionRuleRow): number => {
+      const exactDimensions =
+        Number(row.actor_id !== "*") +
+        Number(row.tool_name !== "*") +
+        Number(row.action_name !== "*");
+      const targetSpecificity = row.target_pattern === "*" ? 0 :
+        row.target_pattern.endsWith("*") ? Math.min(row.target_pattern.length, 499_999) :
+          500_000 + Math.min(row.target_pattern.length, 499_999);
+      return exactDimensions * 1_000_000 + targetSpecificity;
+    };
 
     const bestScore = Math.max(...matching.map(score));
     const best = matching.filter((row) => score(row) === bestScore);
