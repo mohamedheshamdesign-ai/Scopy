@@ -176,5 +176,5 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
   });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, () => { server.removeListener("error", reject); resolve(); }); });
   const address = server.address(); const actualPort = typeof address === "object" && address ? address.port : port;
-  return { url: "http://" + host + ":" + actualPort, close: () => new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())) };
+  return { url: "http://" + host + ":" + actualPort, close: () => { browserTool.close(); return new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); } };
 }
