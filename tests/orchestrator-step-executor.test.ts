@@ -112,6 +112,12 @@ test("approval-required plan action stays ready until exact approval is reviewed
     assert.equal(approvals.getById(pendingId)?.status, "pending");
 
     approvals.approve(pendingId, "user:local");
+    await assert.rejects(
+      executor.execute(runId, "step-1", action({ target: "different-target" }), {}, pendingId),
+      PermissionDeniedError,
+    );
+    assert.equal(runs.getById(runId)?.steps[0]?.status, "ready");
+
     const completed = await executor.execute(runId, "step-1", action(), {}, pendingId);
     assert.equal(completed.run.status, "succeeded");
     assert.equal(approvals.getById(pendingId)?.status, "consumed");
