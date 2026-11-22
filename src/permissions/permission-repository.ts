@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { win32 } from "node:path";
 import type { ScopyDatabase } from "../db/database.js";
 import type { PermissionEffect, PermissionRule, PermissionRuleInput } from "./types.js";
 
@@ -73,12 +74,18 @@ export class PermissionRepository {
         AND action_name IN (?, '*')
     `).all(actorId, tool, action) as PermissionRuleRow[];
 
-    const matching = rows.filter((row) =>
-      row.target_pattern === "*" ||
-      (row.target_pattern.endsWith("*") &&
-        target.startsWith(row.target_pattern.slice(0, -1))) ||
-      row.target_pattern === target
-    );
+    const normalizeTarget = (value: string): string =>
+      tool === "filesystem"
+        ? win32.normalize(value).replace(/\\\\/g, "/").toLowerCase()
+        : value;
+
+    const normalizedTarget = normalizeTarget(target);
+    const matching = rows.filter((row) => {
+      const pattern = normalizeTarget(row.target_pattern);
+      return pattern === "*" ||
+        (pattern.endsWith("*") && normalizedTarget.startsWith(pattern.slice(0, -1))) ||
+        pattern === normalizedTarget;
+    });
     if (matching.length === 0) return null;
 
     const score = (row: PermissionRuleRow): number => {
