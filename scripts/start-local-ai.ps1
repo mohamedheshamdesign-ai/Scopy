@@ -79,7 +79,8 @@ $env:TEMP = $TempRoot
 # Generate a local API key once, store it on E:, and restrict its ACL to this user and Windows administrators.
 if (-not (Test-Path -LiteralPath $ApiKeyFile)) {
     $RandomBytes = New-Object byte[] 32
-    [Security.Cryptography.RandomNumberGenerator]::Fill($RandomBytes)
+    $RandomGenerator = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $RandomGenerator.GetBytes($RandomBytes) } finally { $RandomGenerator.Dispose() }
     $GeneratedKey = [Convert]::ToBase64String($RandomBytes)
     [System.IO.File]::WriteAllText($ApiKeyFile, $GeneratedKey, [System.Text.Encoding]::ASCII)
 }
