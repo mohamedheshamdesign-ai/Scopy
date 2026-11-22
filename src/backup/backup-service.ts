@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, type Dirent } from "node:fs";
 import { copyFile, lstat, readdir, rename, rm, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import Database from "better-sqlite3";
@@ -28,7 +28,7 @@ export class BackupService {
   }
 
   async list(): Promise<BackupListEntry[]> {
-    let entries;
+    let entries: Dirent[];
     try {
       entries = await readdir(this.backupDirectory, { withFileTypes: true });
     } catch (error) {
@@ -51,6 +51,7 @@ export class BackupService {
       .sort((left, right) => right.modifiedAt.localeCompare(left.modifiedAt))
       .slice(0, 100);
   }
+
   async create(): Promise<BackupVerification> {
     mkdirSync(this.backupDirectory, { recursive: true });
     const timestamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
