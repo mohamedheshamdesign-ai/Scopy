@@ -1,9 +1,9 @@
 # Scopy Implemented Features
 
-**Evidence baseline:** tracked source files on `delivery/scopy-local-workspace`, inspected 2026-11-23.  
+**Evidence baseline:** `dev` after the Scopy local workspace delivery merge, inspected 2026-11-23.  
 **Status vocabulary:** Implemented = code exists; Partial = a limited implementation exists; Planned = described as future work; Unverified = no direct evidence inspected.
 
-This document describes code presence, not a claim that the current local checkout has passed its tests. The new dashboard, browser, and terminal additions require CI confirmation before merge.
+The delivery PR passed Windows and Linux CI, including 87 tests per platform and the Windows doctor check. The doctor reported the core healthy; local AI was not configured in CI. Chrome/Edge and Windows UI Automation still require validation on the user workstation.
 
 ## Implemented or partially implemented
 
