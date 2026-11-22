@@ -84,10 +84,11 @@ export class TerminalTool {
       let stderr = "";
       let outputBytes = 0;
       let settled = false;
+      let timer: NodeJS.Timeout | undefined;
       const finish = (error?: Error, result?: unknown) => {
         if (settled) return;
         settled = true;
-        clearTimeout(timer);
+        if (timer) clearTimeout(timer);
         context?.signal.removeEventListener("abort", onAbort);
         if (error) rejectResult(error);
         else resolveResult(result);
@@ -124,7 +125,7 @@ export class TerminalTool {
       };
       if (context?.signal.aborted) onAbort();
       else context?.signal.addEventListener("abort", onAbort, { once: true });
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         child.kill();
         finish(new Error("Terminal command timed out after " + this.timeoutMs + "ms."));
       }, this.timeoutMs);
