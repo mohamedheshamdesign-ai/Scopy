@@ -9,14 +9,14 @@ test("CLI chat adds a system prompt and preserves the user prompt", () => {
   assert.deepEqual(messages.at(-1), { role: "user", content: "Hello Scopy" });
 });
 
-test("Scopy architecture questions receive verified project documentation", () => {
+test("Scopy architecture questions receive verified ground-truth project records", () => {
   const messages = buildCliChatMessages(
     "Explain the Scopy architecture",
     "# Scopy Architecture\nScopy is a local-first personal AI operating system.",
   );
   assert.equal(messages.length, 3);
-  assert.match(messages[1]?.content ?? "", /source of truth/);
-  assert.match(messages[1]?.content ?? "", /local-first personal AI operating system/);
+  assert.match(messages[1]?.content ?? "", /repository inventory/);
+  assert.match(messages[1]?.content ?? "", /local-first personal AI operating system/);\n  assert.match(messages[1]?.content ?? "", /Never invent, rename, or infer a path/);\n  assert.match(messages[1]?.content ?? "", /test file proves that test code exists/);
 });
 
 test("unrelated questions do not receive project documentation", () => {
