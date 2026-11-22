@@ -78,4 +78,10 @@ Do not commit directly to `main`.
 
 ## Current milestone
 
-The first vertical slice provides a local CLI, SQLite migrations, task persistence, and audit events. It is an early foundation, not yet a complete autonomous agent system.
+The local foundation now includes task persistence, versioned SQLite migrations, a central permission policy engine, exact-action approval records, one-time approval consumption, and audit events.
+
+The permission engine uses **default deny**. Rules can be scoped by actor, tool, action, and target. Target patterns support an exact target, `*`, or a trailing wildcard prefix such as `E:\\Scopy\\workspace\\*`. A more specific rule takes precedence; an equally specific deny wins.
+
+Consequential actions configured as `approval_required` must have an approved request whose SHA-256 action fingerprint matches the exact actor, tool, action, target, and payload. The approval is consumed once before the handler runs. Policy decisions are re-evaluated at execution time.
+
+This is the policy and approval core, not yet a complete tool gateway. Real agents and tool adapters must be wired to call the execution guard before any side effect; until then, do not treat the engine as system-wide enforcement. Reviewer identity is currently supplied by the trusted local application layer; authenticated user identity is a later integration task.
