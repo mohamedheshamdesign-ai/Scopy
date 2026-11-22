@@ -273,3 +273,15 @@ test("Windows computer actions always require exact approval even when an allow 
     }).effect, "deny");
   });
 });
+
+
+test("MCP external tool calls always require exact approval even with an allow rule", async () => {
+  await withServices(({ rules, policy }) => {
+    rules.setRule({ actorId: "user:local", tool: "mcp", action: "call", effect: "allow" });
+    assert.equal(policy.evaluate({
+      actorId: "user:local", tool: "mcp", action: "call",
+      target: "github/create_issue",
+      payload: { arguments: { title: "Approved issue" }, serverFingerprint: "a".repeat(64) },
+    }).effect, "approval_required");
+  });
+});
