@@ -70,6 +70,13 @@ export class LocalBrowserSession {
       return { browser: "isolated Chromium session", profile: join(this.homeDirectory, "browser-profile"), port: this.port };
     }
     if (process.platform !== "win32") throw new Error("The managed browser launcher currently targets Windows.");
+    const endpoint = "http://127.0.0.1:" + this.port + "/json/version";
+    try {
+      const existing = await fetch(endpoint, { signal: AbortSignal.timeout(1000) });
+      if (existing.ok) throw new Error("Browser debugging port " + this.port + " is already occupied. Choose another SCOPY_BROWSER_PORT; Scopy will not attach to an existing browser.");
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("already occupied")) throw error;
+    }
     const executable = browserExecutable();
     if (!executable) throw new Error("Chrome or Microsoft Edge was not found in its standard Windows installation path.");
     const profile = join(this.homeDirectory, "browser-profile");
