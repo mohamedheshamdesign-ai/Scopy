@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { createServer } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -45,10 +45,17 @@ test("dashboard uses loopback auth, issues an HttpOnly session, and serves a PWA
     const unauthorized = await fetch("http://127.0.0.1:" + port + "/api/state");
     assert.equal(unauthorized.status, 401);
 
-    const hostileHost = await fetch("http://127.0.0.1:" + port + "/api/health", {
-      headers: { host: "attacker.example" },
+    const hostileHostStatus = await new Promise<number>((resolve, reject) => {
+      const req = httpRequest("http://127.0.0.1:" + port + "/api/health", {
+        headers: { host: "attacker.example" },
+      }, (response) => {
+        response.resume();
+        resolve(response.statusCode ?? 0);
+      });
+      req.once("error", reject);
+      req.end();
     });
-    assert.equal(hostileHost.status, 403);
+    assert.equal(hostileHostStatus, 403);
 
     const token = readFileSync(join(home, "secrets", "dashboard-token.txt"), "utf8").trim();
     const session = await fetch("http://127.0.0.1:" + port + "/api/session", {
