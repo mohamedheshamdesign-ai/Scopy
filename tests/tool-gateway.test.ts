@@ -210,3 +210,45 @@ test("filesystem tool enforces a 1 MiB bound on file reads and writes", async ()
     );
   });
 });
+
+
+test("terminal adapter executes an exact approved command without a shell", async () => {
+  await withGateway(async ({ gateway, workspace, approvals }) => {
+    await mkdir(workspace, { recursive: true });
+    new TerminalTool(workspace).register(gateway);
+    const request = {
+      actorId: "user:local",
+      tool: "terminal",
+      action: "run",
+      target: ".",
+      payload: { executable: "node", args: ["-e", "process.stdout.write('scopy-terminal-ok')"], timeoutMs: 10000 },
+    };
+    await assert.rejects(gateway.execute(request), ApprovalRequiredError);
+    const approval = approvals.request(request);
+    approvals.approve(approval.id, "user:local");
+    const result = await gateway.execute<{
+      exitCode: number | null; stdout: string; stderr: string;
+    }>(request, approval.id);
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stdout, "scopy-terminal-ok");
+    assert.equal(approvals.getById(approval.id)?.status, "consumed");
+  });
+});
+
+test("terminal adapter rejects working directories outside its workspace", async () => {
+  await withGateway(async ({ gateway, workspace, outside, approvals }) => {
+    await mkdir(workspace, { recursive: true });
+    await mkdir(outside, { recursive: true });
+    new TerminalTool(workspace).register(gateway);
+    const request = {
+      actorId: "user:local",
+      tool: "terminal",
+      action: "run",
+      target: outside,
+      payload: { executable: "node", args: ["--version"], timeoutMs: 5000 },
+    };
+    const approval = approvals.request(request);
+    approvals.approve(approval.id, "user:local");
+    await assert.rejects(gateway.execute(request, approval.id), /outside the configured Scopy workspace/);
+  });
+});
