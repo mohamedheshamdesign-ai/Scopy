@@ -10,19 +10,27 @@ export interface ScopyConfig {
   readonly tempDir: string;
 }
 
-export function loadConfig(homeOverride?: string): ScopyConfig {
-  const configuredHome = homeOverride ?? process.env.SCOPY_HOME ?? process.cwd();
+export function loadConfig(
+  homeOverride?: string,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+): ScopyConfig {
+  const configuredHome = homeOverride ?? environment.SCOPY_HOME ?? process.cwd();
   if (configuredHome.includes(String.fromCharCode(0))) {
     throw new Error("SCOPY_HOME contains an invalid null character.");
   }
   const homeDir = resolve(configuredHome);
   const dataDir = join(homeDir, "data");
+  const configuredWorkspace = environment.SCOPY_WORKSPACE_DIR?.trim();
+  if (configuredWorkspace?.includes(String.fromCharCode(0))) {
+    throw new Error("SCOPY_WORKSPACE_DIR contains an invalid null character.");
+  }
+  const workspaceDir = configuredWorkspace ? resolve(homeDir, configuredWorkspace) : join(homeDir, "workspace");
 
   return Object.freeze({
     homeDir,
     dataDir,
     databasePath: join(dataDir, "scopy.sqlite"),
-    workspaceDir: join(homeDir, "workspace"),
+    workspaceDir,
     backupsDir: join(homeDir, "backups"),
     logsDir: join(homeDir, "logs"),
     tempDir: join(homeDir, "temp"),

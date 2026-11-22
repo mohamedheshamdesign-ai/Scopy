@@ -14,6 +14,11 @@ test("Scopy config centralizes all local data directories under its home", () =>
     assert.equal(config.homeDir, home);
     assert.equal(config.databasePath, join(home, "data", "scopy.sqlite"));
     assert.equal(config.workspaceDir, join(home, "workspace"));
+    const customWorkspace = loadConfig(home, { SCOPY_WORKSPACE_DIR: join(home, "projects", "matba3ty") });
+    assert.equal(customWorkspace.workspaceDir, join(home, "projects", "matba3ty"));
+    const relativeWorkspace = loadConfig(home, { SCOPY_WORKSPACE_DIR: "projects/relative" });
+    assert.equal(relativeWorkspace.workspaceDir, join(home, "projects", "relative"));
+    assert.throws(() => loadConfig(home, { SCOPY_WORKSPACE_DIR: String.fromCharCode(0) }), /SCOPY_WORKSPACE_DIR.*null character/);
     assert.equal(config.backupsDir, join(home, "backups"));
     assert.equal(config.logsDir, join(home, "logs"));
     assert.equal(config.tempDir, join(home, "temp"));
