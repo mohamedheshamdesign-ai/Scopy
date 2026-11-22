@@ -29,6 +29,16 @@ npm run check
 npm run build
 ```
 
+## Windows verification
+
+From the repository root in PowerShell, run the one-command verification script:
+
+```powershell
+.\scripts\verify-scopy.ps1
+```
+
+The script checks Node.js 24+, installs dependencies with npm, runs typecheck/build/tests through `npm run check`, and finishes with `doctor`. Use `-SkipInstall` when dependencies are already installed. It does not delete or reset local data.
+
 ## First commands
 
 Run the development CLI:
