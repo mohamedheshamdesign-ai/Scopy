@@ -323,15 +323,6 @@ async function main(): Promise<void> {
         console.log(JSON.stringify({ project, tasks }, null, 2));
         return;
       }
-      if (subcommand === "show") {
-      const id = args[0];
-      if (!id) throw new Error("Usage: task show <task-id>");
-      const task = tasks.getById(id);
-      if (!task) throw new TaskNotFoundError(id);
-      console.log(JSON.stringify(task, null, 2));
-      return;
-    }
-
     if (subcommand === "update") {
         const [id, field, ...valueParts] = args;
         const value = valueParts.join(" ").trim();
@@ -609,6 +600,15 @@ async function main(): Promise<void> {
           console.log(`[${task.status}] [${task.priority}] ${task.title} — ${task.id}${task.projectId ? " (project " + task.projectId + ")" : ""}`);
         }
       }
+      return;
+    }
+
+    if (subcommand === "show") {
+      const id = args[0];
+      if (!id) throw new Error("Usage: task show <task-id>");
+      const task = tasks.getById(id);
+      if (!task) throw new TaskNotFoundError(id);
+      console.log(JSON.stringify(task, null, 2));
       return;
     }
 

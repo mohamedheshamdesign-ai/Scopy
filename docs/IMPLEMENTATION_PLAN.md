@@ -1,116 +1,109 @@
 # Scopy Implementation Plan
 
-**Status:** Initial delivery plan  
+**Status:** Local-first CLI MVP with guarded filesystem execution  
 **Working branch:** `dev`  
 **Rule:** Do not develop directly on `main`.
 
 ## Delivery approach
 
-Build a small, testable vertical slice first. Each phase must have acceptance criteria and a checkpoint commit. Avoid broad rewrites and avoid adding dependencies without a concrete requirement.
+Build small, testable vertical slices. Every consequential action must pass the central policy engine and, when required, an exact one-time approval. Model-generated prose is never executed as a tool call. Unsupported work remains manual.
 
 ## Phase 0 — Repository and engineering baseline
 
 - [x] Create local repository at `E:\Scopy`.
-- [x] Add Git ignore rules for local runtimes, secrets, databases, and generated files.
+- [x] Add Git ignore rules for local runtimes, secrets, databases, logs, and generated files.
 - [x] Create and push `main` and `dev`.
-- [x] Confirm clean working tree and upstream tracking.
 - [x] Add architecture and implementation documentation.
 - [x] Add Node/TypeScript project configuration and repeatable scripts.
-- [x] Add automated test runner and CI validation on Windows and Linux via GitHub Actions.
-- [x] Confirm the actual Node.js version and package manager on the target PC (Node 24.21.0, npm 11.19.0 reported).
+- [x] Add GitHub Actions validation on Windows and Linux.
+- [x] Confirm target machine versions: Node 24.21.0 and npm 11.19.0 were reported.
 
-**Acceptance:** clean install, typecheck, build, and tests run locally and in CI; no local data or secrets are tracked. A dedicated lint script is not currently configured.
+**Acceptance:** clean install, typecheck, build, and tests run in CI; local data and secrets are excluded from Git. A dedicated lint script is not configured yet.
 
 ## Phase 1 — Core foundation
 
-Implement only the contracts and infrastructure required for a first working vertical slice:
+1. [ ] Complete typed environment/configuration validation and safe-mode profiles. Central local paths and a read-only `doctor` command are implemented.
+2. [x] Structured local JSON logging with secret redaction and bounded rotation. CLI lifecycle and guarded step events are logged without prompts or file contents.
+3. [ ] Stable error taxonomy and consistent error serialization.
+4. [x] SQLite database initialization and additive migration runner (schema migrations v1-v8).
+5. [x] Project and task repositories, including project lifecycle and task/project association.
+6. [x] Task IDs, timestamps, status/priority updates, completion, and audit events.
+7. [x] Unit/integration tests and Windows/Linux CI.
 
-1. [ ] Centralized local path configuration and null-character rejection; broader environment schema validation and safe-mode profiles remain open. A read-only `doctor` command checks storage/schema and optional local model connectivity.
-2. [x] Structured local JSON logging with secret redaction and bounded rotation; subsystem coverage remains incremental.
-3. Stable error types and error serialization.
-4. SQLite adapter interface and migration runner.
-5. Repository layer for projects and tasks.
-6. Run/task IDs, timestamps, status transitions, and audit events.
-7. Unit and integration tests.
-
-**Acceptance:** create, list, update, and complete tasks; create/list/update/archive projects; restart Scopy and verify persistence. SQLite backup creation and integrity verification are implemented and tested; restore remains open.
+**Acceptance:** create, list, show, update, and complete tasks; create/list/show/update/archive projects; restart Scopy and verify persistence. SQLite backup creation and integrity verification are implemented and tested; restore remains open.
 
 ## Phase 2 — Controlled execution
 
-1. Typed tool contract and tool registry.
-2. [x] Central policy decision engine: allow, deny, approval required, with default-deny behavior and scoped rules.
-3. [x] Approval records bound to the exact actor, tool, action, target, and payload; approvals are single-use.
-4. [x] Audit events for policy changes, approval lifecycle, and guarded tool execution.
-5. [x] Tool gateway that routes registered tool calls through the execution guard.
-6. [x] Initial UTF-8 filesystem tool restricted to the configured workspace; path traversal and symlink escapes are checked.
-7. [x] Runtime engine with cooperative timeout/cancellation, serialized output-size limits, persisted execution records, checkpoints, and caller-driven resume.
-8. Harden filesystem isolation against local race conditions; add OS-level isolation where appropriate.
-9. Authenticated reviewer identity and a local approval interface.
+1. [x] Typed tool contract and tool gateway/registry.
+2. [x] Central policy engine: allow, deny, approval-required, default deny, and scoped rules.
+3. [x] Exact actor/tool/action/target/payload-bound approvals with one-time consumption.
+4. [x] Audit events for policy changes, approval lifecycle, and guarded execution.
+5. [x] Tool gateway routes registered tool calls through the execution guard.
+6. [x] Workspace-scoped filesystem read/write/list/mkdir. Path traversal and symlink escapes are checked; reads/writes are capped at 1 MiB and listings at 500 entries.
+7. [x] Runtime engine with cooperative timeout/cancellation, output limits, persisted execution records, checkpoints, and caller-driven resume.
+8. [ ] Harden against local time-of-check/time-of-use races and add OS-level process isolation.
+9. [ ] Authenticated reviewer identity and a local approval interface; approval review is currently CLI-only.
 
-**Runtime limitations:** cancellation requires tools to observe the abort signal; non-cooperative handlers may continue after the runtime stops awaiting them. Output size is checked after result serialization, not as a streaming or memory-allocation cap. Hard process isolation and streaming output enforcement are not implemented. A failed/timed-out execution may have completed an external side effect before the runtime recorded failure; retries are explicit and must not be assumed idempotent.
+**Runtime limitations:** cancellation is cooperative; non-cooperative handlers may continue after the runtime stops awaiting them. Output limits are checked after handler output serialization. A failed/timed-out action may have completed a side effect before failure was recorded. Retries are explicit and must be reviewed.
 
-**Acceptance:** policy, approval, gateway, filesystem, and runtime tests pass; safe read/write succeeds inside the workspace; traversal and symlink escapes are denied; approval-required actions cannot execute before approval; timeouts and cancellation are recorded; checkpoints can be loaded by a matching resumed run.
+**Acceptance:** default-deny, exact approvals, actor binding, workspace confinement, filesystem size limits, failure recording, checkpoints, and audit trails are covered by tests.
 
 ## Phase 3 — AI routing and memory
 
-1. [x] Provider adapter interface and capability declarations.
-2. [x] Loopback-only OpenAI-compatible local provider with health and chat requests.
-3. [x] Explicit per-request cloud egress opt-in enforcement and audit events; no cloud provider enabled by default.
-4. [x] Provider registry, model validation, and health checks.
-5. [x] SQLite memory records for working, episodic, semantic, project, preference, and procedural types with provenance, confidence, scope, and expiry.
-6. [x] Bounded lexical retrieval and deterministic retrieval tests before adding embeddings.
-7. [x] Windows local-runtime launcher, E:-scoped model cache, model integrity diagnostics, model-ID discovery, and CLI throughput benchmark harness.
-8. [ ] Record device-specific speed/RAM/VRAM/context measurements and complete controlled GPU-offload, KV-cache, Flash Attention, and speculative-decoding A/B tests.
+1. [x] Provider interface and capability declarations.
+2. [x] Loopback-only OpenAI-compatible local provider with health and non-streaming chat.
+3. [x] Explicit cloud egress gate; no cloud provider or silent cloud fallback is enabled.
+4. [x] Provider registry, exact model ID validation, and health checks.
+5. [x] SQLite memory records with type, provenance, confidence, scope, and expiry.
+6. [x] Bounded lexical memory retrieval and deterministic tests; CLI chat and advisory agents inject up to five relevant active records.
+7. [x] Windows local-model launcher, E:-scoped cache, integrity diagnostics, model-ID discovery, and benchmark harness.
+8. [ ] Record target-PC throughput/RAM/VRAM/context measurements and complete controlled GPU-offload, KV-cache, Flash Attention, and speculative-decoding A/B tests.
 9. [ ] Automatic memory extraction/consolidation and richer retrieval evaluation.
-8. [ ] Optional cloud provider adapters, streaming, and tool calling only after explicit policy and data-boundary review.
+10. [ ] Optional cloud adapters, streaming, and model tool calling after explicit data-boundary and policy review.
 
-**Current limits:** local provider is non-streaming and chat-only. It does not implement tool calls or vision. Memory search is lexical, not embedding-based. Provider failover is intentionally absent: a local provider failure never silently routes private prompts to cloud. The Windows runtime launcher and benchmark harness are implemented, but device-specific performance measurements remain pending until executed on the target PC.
-
-**Acceptance:** route a prompt to a configured local model; handle provider unavailable state; reject non-loopback endpoints; no silent cloud fallback; memory results expose source, scope, and confidence; expiry/archive filters work.
+**Current limits:** local chat is non-streaming and chat-only; no vision or model tool calling. Memory retrieval is lexical, not vector/embedding-based. Provider failover is absent. Device-specific performance measurements still need to be run on the target PC.
 
 ## Phase 4 — Orchestration and specialist agents
 
-1. [x] Plan schema and validation — bounded step fields, risk labels, dependency validation, and cycle detection.
-   - Initial slice also supports local-model draft generation, SQLite persistence, explicit approve/reject review, and audit events. Plan approval is not execution authorization.
-2. [x] Orchestrator run lifecycle — approved-plan runs, persisted step states, dependency gating, serial transitions, explicit retry after recorded failures, cancellation, audit events, and inspectable checkpoints.
-3. [x] Guarded plan-step execution service — typed action requests pass policy preflight, exact one-time approval checks, actor binding, RuntimeEngine, ToolGateway, and ExecutionGuard.
-4. [x] CLI wiring for explicit filesystem actions, permission-rule management, and approval review.
-5. [x] Bounded typed filesystem action proposals stored with reviewed plan steps and copied into runs; the CLI resolves saved actions without hand-written JSON.
-6. [ ] Expand action resolution only through separately validated schemas and registered tools; never execute model-generated free text as a tool call.
-7. [x] Built-in advisory-only agent registry and capability declarations; specialist profiles run through the local chat provider and cannot invoke tools.
-8. [ ] Multi-agent delegation and inter-agent messaging. [x] Explicit manual recovery of a single interrupted in-flight step after process-stop confirmation; side effects remain unknown and require inspection.
-8. Delegation, dependencies, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
-9. Evaluation of plan quality and execution outcomes.
-10. [ ] Add tool-enabled Research and Developer agents first, then expand based on real workflows.
+1. [x] Plan schema and validation: bounded fields, risk labels, dependency validation, and cycle detection.
+2. [x] Plan generation, persistence, explicit approve/reject review, and audit events. Plan approval is not tool authorization.
+3. [x] Orchestrator run lifecycle with dependency gating, serial steps, cancellation, explicit retry, and checkpoints.
+4. [x] Guarded step executor: policy preflight, actor binding, exact approval, RuntimeEngine, ToolGateway, and ExecutionGuard.
+5. [x] Typed filesystem action proposals persisted with plan steps and copied into runs. Supported actions: read, list, mkdir, write.
+6. [x] CLI can execute the saved plan action without hand-written JSON. Typed-action steps cannot be marked successful through manual bookkeeping.
+7. [x] Built-in advisory-only profiles: assistant, brand designer, business operator, developer, research analyst, marketing strategist, and project manager. They use the local model and relevant memory but have no tools.
+8. [x] Explicit manual recovery of one interrupted in-flight step after the user confirms the prior process has stopped. Side effects remain unknown; recovery never retries automatically.
+9. [ ] Multi-agent delegation, inter-agent messaging, and independent agent work queues.
+10. [ ] Tool-enabled Research and Developer agents, followed by other specialist agents, each with separately validated capabilities.
 
-**Acceptance:** one multi-step task is planned and reviewed; a run is started; dependency-ordered steps can be advanced manually or executed through the guarded service; default-deny, exact approvals, actor binding, tool failure recording, checkpoints, and audit trails are tested. The CLI currently registers only the filesystem tool. The planner can propose validated filesystem read/list/mkdir/write actions; unsupported work remains manual. Automatic interrupted-side-effect recovery is not implemented. A timeout or failed result does not prove that a non-cooperative tool had no side effect; retries require review.
+**Current limits:** only the filesystem tool is registered for guarded plan execution. Agents are advisory-only. They cannot browse, run terminal commands, or invoke tools. Unsupported plan steps remain manual. A failed or interrupted action may have side effects; inspect before retrying.
 
 ## Phase 5 — Browser and computer control
 
-1. Browser automation in an isolated context.
-2. Domain, download, and session controls.
-3. Windows computer adapter behind the tool gateway.
-4. Per-action risk checks and explicit approvals.
-5. Recovery and screenshot/evidence capture where appropriate.
+1. [ ] Browser automation in an isolated context.
+2. [ ] Domain, download, and session controls.
+3. [ ] Windows computer adapter behind the tool gateway.
+4. [ ] Per-action risk checks and explicit approvals.
+5. [ ] Recovery and screenshot/evidence capture.
 
 **Acceptance:** browser research works in isolation; consequential actions remain approval-gated; desktop actions are logged and recoverable.
 
 ## Phase 6 — Workspace and integrations
 
-1. Desktop workspace after core APIs stabilize.
-2. Project/task/run/memory views.
-3. Provider and permission settings.
-4. External integrations, each opt-in and scoped.
-5. Backup, restore, diagnostics, and upgrade workflow.
+1. [ ] Desktop workspace.
+2. [ ] Project/task/run/memory views.
+3. [ ] Provider and permission settings UI.
+4. [ ] External integrations, each opt-in and scoped.
+5. [ ] Backup restore and upgrade workflow. Backup creation and integrity verification exist; restore does not.
 
-**Acceptance:** user can manage projects and inspect/approve agent work from one local interface.
+**Acceptance:** projects and agent work can be managed and reviewed from one local interface.
 
 ## Engineering rules
 
 - Work on `dev`; protect `main` as the stable branch.
 - Use small commits with descriptive messages.
-- Run formatting, lint, typecheck, and tests before pushing.
-- Never commit `.env`, credentials, databases, logs, personal files, or backups.
+- Run typecheck, build, and tests before pushing; add lint when a lint configuration is introduced.
+- Never commit credentials, databases, logs, personal files, model caches, runtime binaries, or backups.
 - Do not delete or overwrite user data during migrations.
 - Prefer additive migrations and create a verified backup before destructive schema changes.
 - Every tool must declare inputs, outputs, capabilities, side effects, and risk level.
