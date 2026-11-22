@@ -282,3 +282,34 @@ test("run executor processes saved filesystem actions sequentially and pauses fo
     assert.equal(readFileSync(join(workspace, "execution-check.txt"), "utf8"), "Scopy sequential execution");
   });
 });
+
+test("run executor pauses at a manual step without running later typed actions", async () => {
+  await withExecutor(async ({ plans, runs, executor }) => {
+    const plan = plans.create("Pause at manual work", {
+      summary: "Manual work must be completed before a later filesystem action.",
+      steps: [
+        { id: "step-1", title: "Review content", description: "A human reviews the content.", expectedOutput: "The review is complete.", risk: "low", dependsOn: [] },
+        { id: "step-2", title: "Write approved note", description: "Write only after review.", expectedOutput: "The note is written.", risk: "low", dependsOn: ["step-1"], action: { tool: "filesystem", action: "write", target: "after-review.txt", payload: { content: "reviewed" } } },
+      ],
+    });
+    plans.review(plan.id, "approved", "user:local");
+    const runId = runs.start(plan.id, "user:local").id;
+    const result = await executor.executeReadySteps(runId);
+    assert.equal(result.pausedAt?.reason, "manual_step");
+    assert.equal(result.pausedAt?.stepId, "step-1");
+    assert.deepEqual(result.executedStepIds, []);
+    assert.equal(result.run.steps[0]?.status, "ready");
+    assert.equal(result.run.steps[1]?.status, "pending");
+  });
+});
+
+test("run executor does not start a second action while a step is already in flight", async () => {
+  await withExecutor(async ({ plans, runs, executor }) => {
+    const runId = await createRun(plans, runs);
+    runs.startStep(runId, "step-1");
+    const result = await executor.executeReadySteps(runId);
+    assert.equal(result.pausedAt?.reason, "in_flight");
+    assert.equal(result.pausedAt?.stepId, "step-1");
+    assert.equal(result.run.steps[0]?.status, "running");
+  });
+});
