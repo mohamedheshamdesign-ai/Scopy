@@ -18,12 +18,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Install dependencies
+      - name: Verify installer, typecheck, build, tests, and doctor
         shell: pwsh
-        run: npm install --no-audit --no-fund
-      - name: Verify source
-        shell: pwsh
-        run: .\scripts\verify-scopy.ps1 -SkipInstall
+        run: .\scripts\install-scopy.ps1 -HomePath "$env:RUNNER_TEMP\ScopyHome"
       - name: Build source archive
         shell: pwsh
         run: |
