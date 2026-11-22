@@ -80,7 +80,9 @@ Do not commit directly to `main`.
 
 The local foundation now includes task persistence, versioned SQLite migrations, a central permission policy engine, exact-action approval records, one-time approval consumption, and audit events.
 
-The permission engine uses **default deny**. Rules can be scoped by actor, tool, action, and target. Target patterns support an exact target, `*`, or a trailing wildcard prefix such as `E:\\Scopy\\workspace\\*`. A more specific rule takes precedence; an equally specific deny wins.
+The permission engine uses **default deny**. Rules can be scoped by actor, tool, action, and target. Target patterns support an exact target, `*`, or a trailing wildcard prefix such as `E:\\Scopy\\workspace\\*`. Filesystem targets are normalized with Windows path rules and compared case-insensitively. A more specific rule takes precedence; ties resolve as deny, then approval-required, then allow.
+
+The future filesystem adapter must also resolve the real path (including symlinks) and verify the final destination remains inside an approved workspace root before it reads or writes anything. String-pattern checks alone are not a filesystem sandbox.
 
 Consequential actions configured as `approval_required` must have an approved request whose SHA-256 action fingerprint matches the exact actor, tool, action, target, and payload. The approval is consumed once before the handler runs. Policy decisions are re-evaluated at execution time.
 
