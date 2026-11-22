@@ -93,16 +93,13 @@ In a second PowerShell window:
 Invoke-RestMethod "http://127.0.0.1:8080/v1/models" | ConvertTo-Json -Depth 6
 ~~~
 
-Then configure Scopy with the exact data[].id returned by the local server:
+Connect Scopy to the exact model ID returned by the local server:
 
 ~~~
-$env:SCOPY_HOME = "E:\Scopy"
-$env:SCOPY_LOCAL_AI_URL = "http://127.0.0.1:8080/v1"
-$env:SCOPY_LOCAL_AI_MODEL = "PASTE_EXACT_DATA_ID_HERE"
-$env:SCOPY_LOCAL_AI_CONTEXT_TOKENS = "8192"
+. .\scripts\connect-local-ai.ps1
 ~~~
 
-The ai models CLI command also lists available model IDs. Do not guess the model ID from the Hugging Face repository name.
+The script selects the model automatically when exactly one model is served, validates the ID, sets the current PowerShell environment, and persists non-secret Scopy settings in the user environment. If multiple models are served, pass -ModelId explicitly. The ai models CLI command also lists available model IDs. Do not guess the model ID from the Hugging Face repository name.
 
 ## 4. Scopy health and real chat
 
