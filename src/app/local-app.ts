@@ -14,6 +14,12 @@ import { ApprovalService } from "../permissions/approval-service.js";
 import { PlanRepository } from "../orchestrator/plan-repository.js";
 import { generateDraftPlan } from "../orchestrator/planner.js";
 import { delegateToSpecialists } from "../agents/delegation.js";
+import { PlanRunRepository } from "../orchestrator/run-repository.js";
+import { PlanStepExecutor } from "../orchestrator/step-executor.js";
+import { RuntimeEngine } from "../runtime/runtime-engine.js";
+import { ExecutionGuard } from "../permissions/execution-guard.js";
+import { FilesystemTool } from "../tools/filesystem-tool.js";
+import { ToolGateway } from "../tools/tool-gateway.js";
 
 export interface LocalAppHandle { readonly url: string; close(): Promise<void>; }
 
@@ -54,7 +60,7 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Port must be between 1024 and 65535.");
   const token = randomBytes(32).toString("hex");
   const tasks = new TaskRepository(database); const projects = new ProjectRepository(database); const memories = new MemoryRepository(database);
-  const agents = new AgentRegistry(); const policy = new PolicyEngine(new PermissionRepository(database), config.safetyProfile); const approvals = new ApprovalService(database, policy); const plans = new PlanRepository(database);
+  const agents = new AgentRegistry(); const policy = new PolicyEngine(new PermissionRepository(database), config.safetyProfile); const approvals = new ApprovalService(database, policy); const plans = new PlanRepository(database); const runs = new PlanRunRepository(database);
   const server = createServer(async (request, response) => {
     try {
       if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(request.headers.host ?? "")) return send(response, 403, { error: "Localhost only." });
@@ -76,6 +82,21 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
       if (request.method === "GET" && url.pathname === "/api/approvals") return send(response, 200, approvals.listPending());
       const approval = url.pathname.match(/^\/api\/approvals\/([0-9a-f-]+)\/(approve|reject)$/i);
       if (request.method === "POST" && approval) { const result = approval[2] === "approve" ? approvals.approve(approval[1]!, "user:local") : approvals.reject(approval[1]!, "user:local"); return send(response, 200, result); }
+      if (request.method === "GET" && url.pathname === "/api/plans") return send(response, 200, plans.list());
+      if (request.method === "GET" && url.pathname === "/api/runs") return send(response, 200, runs.list());
+      const planReview = url.pathname.match(/^\\/api\\/plans\\/([0-9a-f-]+)\\/(approve|reject)$/i);
+      if (request.method === "POST" && planReview) return send(response, 200, plans.review(planReview[1]!, planReview[2] === "approve" ? "approved" : "rejected", "user:local"));
+      const planStart = url.pathname.match(/^\\/api\\/plans\\/([0-9a-f-]+)\\/start$/i);
+      if (request.method === "POST" && planStart) return send(response, 201, runs.start(planStart[1]!, "user:local"));
+      const runExecute = url.pathname.match(/^\\/api\\/runs\\/([0-9a-f-]+)\\/execute$/i);
+      if (request.method === "POST" && runExecute) {
+        const b = await readBody(request);
+        const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
+        new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
+        const runtime = new RuntimeEngine(database, gateway);
+        const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
+        return send(response, 200, await executor.executeReadySteps(runExecute[1]!, {}, typeof b.approvalId === "string" ? b.approvalId : undefined));
+      }
       if (request.method === "POST" && url.pathname === "/api/plans") { const b = await readBody(request); if (typeof b.goal !== "string" || !b.goal.trim()) return send(response, 400, { error: "Plan goal is required." }); const router = createLocalAiRouter(database); const provider = router.list()[0]; if (!provider) return send(response, 503, { error: "Local AI is not connected." }); return send(response, 201, await generateDraftPlan(router, provider.id, plans, b.goal.trim().slice(0, 2000))); }
       return send(response, 404, { error: "API route not found." });
     } catch (error) { const message = error instanceof Error ? error.message : "Request failed."; const status = message.includes("not found") ? 404 : message.includes("required") || message.includes("between") || message.includes("cannot") ? 400 : 500; return send(response, status, { error: message }); }
