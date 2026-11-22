@@ -42,6 +42,9 @@ export class ProviderRouter {
     if (!provider.descriptor.capabilities.chat) {
       throw new Error(`Provider does not support chat: ${providerId}`);
     }
+    if (request.model && !provider.descriptor.models.includes(request.model)) {
+      throw new Error(`Model is not registered with provider ${providerId}: ${request.model}`);
+    }
 
     if (provider.descriptor.dataBoundary === "cloud") {
       if (request.allowCloudEgress !== true) {
