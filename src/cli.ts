@@ -24,6 +24,7 @@ import { ToolGateway } from "./tools/tool-gateway.js";
 import { PlanStepExecutor } from "./orchestrator/step-executor.js";
 import { DashboardServer } from "./dashboard/dashboard-server.js";
 import { TerminalTool } from "./tools/terminal-tool.js";
+import { BrowserTool } from "./tools/browser-tool.js";
 
 function printUsage(): void {
   console.log(`
@@ -504,6 +505,7 @@ async function main(): Promise<void> {
         const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
         new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
         new TerminalTool(config.workspaceDir).register(gateway);
+        new BrowserTool(config.homeDir).register(gateway);
         const runtime = new RuntimeEngine(database, gateway);
         const executor = new PlanStepExecutor(runs, policy, approvals, runtime, logger);
         const result = await executor.executeReadySteps(runId, {}, approvalId);
@@ -587,6 +589,7 @@ async function main(): Promise<void> {
             const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
             new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
         new TerminalTool(config.workspaceDir).register(gateway);
+        new BrowserTool(config.homeDir).register(gateway);
             const runtime = new RuntimeEngine(database, gateway);
             const executor = new PlanStepExecutor(runs, policy, approvals, runtime, logger);
             try {
@@ -630,6 +633,7 @@ async function main(): Promise<void> {
           const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
           new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
         new TerminalTool(config.workspaceDir).register(gateway);
+        new BrowserTool(config.homeDir).register(gateway);
           const runtime = new RuntimeEngine(database, gateway);
           const executor = new PlanStepExecutor(runs, policy, approvals, runtime, logger);
           const result = await executor.execute(runId, stepId, {
