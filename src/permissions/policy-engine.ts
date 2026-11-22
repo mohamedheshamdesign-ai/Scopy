@@ -14,6 +14,13 @@ export class PolicyEngine {
       request.actorId, request.tool, request.action, request.target,
     );
 
+    if (request.actorId === "user:local" && request.tool === "mcp" && request.action === "call") {
+      if (rule?.effect === "deny") {
+        return { effect: "deny", reason: "A matching explicit deny rule blocks this MCP action.", ruleId: rule.id };
+      }
+      return { effect: "approval_required", reason: "External MCP tool calls always require exact explicit approval.", ruleId: rule?.id ?? null };
+    }
+
     if (request.actorId === "user:local" &&
         ((request.tool === "terminal" && request.action === "run") ||
          (request.tool === "browser" && request.action === "open"))) {
