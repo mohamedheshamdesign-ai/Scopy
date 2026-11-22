@@ -199,3 +199,9 @@ The dashboard currently provides a local overview, assistant/specialist chat, ta
 ### Controlled terminal
 
 The local dashboard includes a constrained terminal action. It launches only `node`, `git`, `python`, or `powershell.exe` as a direct child process (no shell), requires an exact one-time approval by default, confines the working directory to the configured Scopy workspace, limits arguments, execution time (up to two minutes), and combined output (64 KiB). A process that spawns detached child processes may outlive the direct child timeout; this is not an OS-level sandbox. Never pass credentials in command-line arguments.
+
+
+
+### Isolated browser and specialist team
+
+The dashboard can launch Chrome or Edge using a dedicated profile under `SCOPY_HOME\browser-profile`, open a URL, and extract the visible page text for review. It does not attach to the user's normal browser profile or reuse its cookies. Browser automation is currently limited to navigation and page reading; it does not click buttons, submit forms, download files, or access signed-in sessions. Team mode runs two or three advisory specialists sequentially through the same configured local model, then synthesizes their contributions; it is not yet autonomous multi-agent tool delegation.
