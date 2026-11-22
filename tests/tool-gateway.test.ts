@@ -7,7 +7,7 @@ import test from "node:test";
 import { loadConfig } from "../src/config.js";
 import { openDatabase } from "../src/db/database.js";
 import { ApprovalService } from "../src/permissions/approval-service.js";
-import { ExecutionGuard, PermissionDeniedError } from "../src/permissions/execution-guard.js";
+import { ApprovalRequiredError, ExecutionGuard, PermissionDeniedError } from "../src/permissions/execution-guard.js";
 import { PermissionRepository } from "../src/permissions/permission-repository.js";
 import { PolicyEngine } from "../src/permissions/policy-engine.js";
 import { FilesystemSandboxError, FilesystemTool } from "../src/tools/filesystem-tool.js";
@@ -19,6 +19,7 @@ async function withGateway(run: (context: {
   outside: string;
   gateway: ToolGateway;
   rules: PermissionRepository;
+  approvals: ApprovalService;
 }) => Promise<void>): Promise<void> {
   const home = mkdtempSync(join(tmpdir(), "scopy-gateway-test-"));
   const workspace = join(home, "workspace");
@@ -32,7 +33,7 @@ async function withGateway(run: (context: {
   const filesystem = new FilesystemTool({ workspaceRoot: workspace });
   filesystem.register(gateway);
   try {
-    await run({ home, workspace, outside, gateway, rules });
+    await run({ home, workspace, outside, gateway, rules, approvals });
   } finally {
     database.close();
     rmSync(home, { recursive: true, force: true });
@@ -115,5 +116,28 @@ test("filesystem tool blocks a symlink that points outside the workspace", async
 test("gateway rejects duplicate tool registrations", async () => {
   await withGateway(async ({ gateway }) => {
     assert.throws(() => gateway.register("filesystem", "duplicate", () => "bad"));
+  });
+});
+
+test("tool gateway requires and consumes approval before sensitive tool execution", async () => {
+  await withGateway(async ({ gateway, rules, approvals }) => {
+    rules.setRule({
+      actorId: "agent:operations", tool: "filesystem", action: "write",
+      targetPattern: "*", effect: "approval_required",
+    });
+    const request = {
+      actorId: "agent:operations",
+      tool: "filesystem",
+      action: "write",
+      target: "approved.txt",
+      payload: { content: "approved" },
+    };
+    await assert.rejects(gateway.execute(request), ApprovalRequiredError);
+
+    const pending = approvals.request(request);
+    approvals.approve(pending.id, "local-owner");
+    const result = await gateway.execute<{ bytesWritten: number }>(request, pending.id);
+    assert.equal(result.bytesWritten, Buffer.byteLength("approved"));
+    assert.equal(approvals.getById(pending.id)?.status, "consumed");
   });
 });
