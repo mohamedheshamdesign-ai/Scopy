@@ -702,7 +702,7 @@ export class DashboardServer {
       const gateway = new ToolGateway(new ExecutionGuard(this.database, policy, approvals));
       new WindowsComputerTool().register(gateway);
       const runtime = new RuntimeEngine(this.database, gateway);
-      const result = await runtime.execute(requestAction, { timeoutMs: 30000, maxOutputBytes: action === "screenshot" ? 2_000_000 : 65536 }, approvalId);
+      const result = await runtime.execute(requestAction, { timeoutMs: 30000, maxOutputBytes: action === "screenshot" ? 1_048_576 : 65536 }, approvalId);
       json(response, 200, result);
       return;
     }
