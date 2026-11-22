@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { buildCliChatMessages } from "./ai/chat-context.js";
 import { createLocalAiRouter } from "./ai/create-local-router.js";
 import { listLocalModels } from "./ai/local-openai-provider.js";
 import { loadConfig } from "./config.js";
@@ -105,8 +108,17 @@ async function main(): Promise<void> {
           process.exitCode = 1;
           return;
         }
+        let architectureDocument: string | undefined;
+        try {
+          architectureDocument = await readFile(
+            resolve(process.cwd(), "docs/ARCHITECTURE.md"),
+            "utf8",
+          );
+        } catch {
+          // Scopy remains usable when invoked outside a full source checkout.
+        }
         const result = await router.generate(provider.id, {
-          messages: [{ role: "user", content: prompt }],
+          messages: buildCliChatMessages(prompt, architectureDocument),
         }, {
           actorId: "user:local",
           purpose: "local CLI chat",
