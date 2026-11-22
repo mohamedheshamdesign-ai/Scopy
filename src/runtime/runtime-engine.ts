@@ -10,6 +10,7 @@ export interface RuntimeOptions {
   readonly timeoutMs?: number;
   readonly maxOutputBytes?: number;
   readonly resumeFromRunId?: string;
+  readonly onStarted?: (runId: string) => void;
 }
 
 export interface ExecutionRun<T = unknown> {
@@ -138,6 +139,7 @@ export class RuntimeEngine {
     };
 
     timer = setTimeout(() => controller.abort(new RuntimeTimeoutError(timeoutMs)), timeoutMs);
+    options.onStarted?.(runId);
 
     try {
       const work = this.gateway.execute<T>(request, approvalId, context);
