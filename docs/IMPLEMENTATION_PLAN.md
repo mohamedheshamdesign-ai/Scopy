@@ -41,12 +41,13 @@ Implement only the contracts and infrastructure required for a first working ver
 2. [x] Central policy decision engine: allow, deny, approval required, with default-deny behavior and scoped rules.
 3. [x] Approval records bound to the exact actor, tool, action, target, and payload; approvals are single-use.
 4. [x] Audit events for policy changes, approval lifecycle, and guarded tool execution.
-5. Runtime with timeout, cancellation, output limits, and checkpoints.
-6. Filesystem tool restricted to configured workspace roots.
-7. Tool gateway integration so every tool side effect must pass through the execution guard.
-8. Authenticated reviewer identity and a local approval interface.
+5. [x] Tool gateway that routes registered tool calls through the execution guard.
+6. [x] Initial UTF-8 filesystem tool restricted to the configured workspace; path traversal and symlink escapes are checked.
+7. Runtime with timeout, cancellation, output limits, and checkpoints.
+8. Harden filesystem isolation against local race conditions; add OS-level isolation where appropriate.
+9. Authenticated reviewer identity and a local approval interface.
 
-**Acceptance:** policy and approval unit tests pass; safe read/write task succeeds inside the workspace; traversal and out-of-scope writes are denied; approval-required actions cannot execute before approval; agents cannot invoke tool adapters outside the guard.
+**Acceptance:** policy, approval, gateway, and filesystem tests pass; safe read/write task succeeds inside the workspace; traversal and symlink escapes are denied; approval-required actions cannot execute before approval; tool adapters are only exposed through the gateway.
 
 ## Phase 3 — AI routing and memory
 
