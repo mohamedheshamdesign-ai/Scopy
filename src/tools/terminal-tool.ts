@@ -58,7 +58,7 @@ export class TerminalTool {
   private async handle(request: ActionRequest, context?: ToolExecutionContext): Promise<unknown> {
     if (request.action !== "run") throw new Error("Terminal supports only the run action.");
     const payload = request.payload as TerminalPayload | undefined;
-    if (!payload || typeof payload.commandId !== "string" || !(payload.commandId in COMMANDS)) throw new Error("Unknown terminal command ID.");
+    if (!payload || typeof payload.commandId !== "string" || !Object.hasOwn(COMMANDS, payload.commandId)) throw new Error("Unknown terminal command ID.");
     const command = COMMANDS[payload.commandId]!;
     const cwd = resolve(this.root, request.target || ".");
     const actualRoot = await realpath(this.root);
