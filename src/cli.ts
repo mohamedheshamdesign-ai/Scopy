@@ -1,6 +1,7 @@
 import { createLocalAiRouter } from "./ai/create-local-router.js";
 import { loadConfig } from "./config.js";
 import { openDatabase } from "./db/database.js";
+import { MemoryRepository, type MemoryType } from "./memory/memory-repository.js";
 import { TaskNotFoundError, TaskRepository } from "./tasks/task-repository.js";
 
 function printUsage(): void {
@@ -14,6 +15,9 @@ Commands:
   npm run dev -- task complete <task-id>
   npm run dev -- ai health
   npm run dev -- ai chat "Your prompt"
+  npm run dev -- memory add <type> <scope> "Memory content"
+  npm run dev -- memory search "Search query"
+  npm run dev -- memory list
 `);
 }
 
@@ -60,6 +64,40 @@ async function main(): Promise<void> {
         return;
       }
 
+      printUsage();
+      process.exitCode = 1;
+      return;
+    }
+
+    if (command === "memory") {
+      const memories = new MemoryRepository(database);
+      if (subcommand === "add") {
+        const [type, scope, ...contentParts] = args;
+        const content = contentParts.join(" ").trim();
+        if (!type || !scope || !content) {
+          console.error("Usage: memory add <type> <scope> \"Memory content\"");
+          process.exitCode = 1;
+          return;
+        }
+        console.log(JSON.stringify(memories.create({
+          type: type as MemoryType,
+          scope,
+          content,
+          sourceType: "user_confirmed",
+          sourceRef: "cli",
+          confidence: 1,
+        }), null, 2));
+        return;
+      }
+      if (subcommand === "search") {
+        const query = args.join(" ").trim();
+        console.log(JSON.stringify(memories.search(query), null, 2));
+        return;
+      }
+      if (subcommand === "list") {
+        console.log(JSON.stringify(memories.list(), null, 2));
+        return;
+      }
       printUsage();
       process.exitCode = 1;
       return;
