@@ -33,7 +33,7 @@ src/orchestrator/plan-repository.ts
 src/orchestrator/plan.ts
 src/orchestrator/planner.ts
 src/orchestrator/run-repository.ts
-src/orchestrator/planner.ts
+src/orchestrator/step-executor.ts
 src/project/project-context.ts
 src/permissions/approval-service.ts
 src/permissions/execution-guard.ts
@@ -49,6 +49,7 @@ tests/chat-context.test.ts
 tests/local-router-timeout.test.ts
 tests/memory-repository.test.ts
 tests/orchestrator-run.test.ts
+tests/orchestrator-step-executor.test.ts
 tests/orchestrator.test.ts
 tests/permissions.test.ts
 tests/project-context.test.ts
