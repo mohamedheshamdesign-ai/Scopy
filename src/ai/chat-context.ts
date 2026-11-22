@@ -19,6 +19,13 @@ const PROJECT_EVIDENCE_RULES = [
   "7. Do not map source folders into hypothetical core/, agents/, tools/, or integrations/ paths. Use the exact path spelling in the inventory.",
 ].join("\n");
 
+const PROJECT_CONTEXT_INTRO = [
+  PROJECT_EVIDENCE_RULES,
+  "The following project records are supplied evidence. Prefer the repository inventory and implemented-features record for current-state questions. Architecture and implementation-plan documents describe intent and future work, not proof of implementation.",
+].join("\n\n");
+
+const MAX_PROJECT_CONTEXT_CHARS = 24_000;
+
 export function buildCliChatMessages(
   prompt: string,
   projectContext?: string,
@@ -28,13 +35,13 @@ export function buildCliChatMessages(
   ];
   const asksAboutProject = /\bscopy\b|\brepository\b|\brepo\b|codebase|architecture|implementation plan|implemented features|project structure|modules|files and modules/i.test(prompt);
   if (asksAboutProject && projectContext?.trim()) {
+    const availableDocumentChars = Math.max(
+      0,
+      MAX_PROJECT_CONTEXT_CHARS - PROJECT_CONTEXT_INTRO.length - 2,
+    );
     messages.push({
       role: "system",
-      content: [
-        PROJECT_EVIDENCE_RULES,
-        "The following project records are supplied evidence. Prefer the repository inventory and implemented-features record for current-state questions. Architecture and implementation-plan documents describe intent and future work, not proof of implementation.",
-        projectContext.slice(0, 24_000),
-      ].join("\n\n"),
+      content: `${PROJECT_CONTEXT_INTRO}\n\n${projectContext.slice(0, availableDocumentChars)}`,
     });
   }
   messages.push({ role: "user", content: prompt });
