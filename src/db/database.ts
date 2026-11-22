@@ -47,6 +47,46 @@ const migrations: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 2,
+    name: "central_permissions_and_approvals",
+    up(database) {
+      database.exec(`
+        CREATE TABLE permission_rules (
+          id TEXT PRIMARY KEY,
+          actor_id TEXT NOT NULL,
+          tool_name TEXT NOT NULL,
+          action_name TEXT NOT NULL,
+          target_pattern TEXT NOT NULL,
+          effect TEXT NOT NULL CHECK(effect IN ('allow', 'deny', 'approval_required')),
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(actor_id, tool_name, action_name, target_pattern)
+        ) STRICT;
+
+        CREATE INDEX idx_permission_rules_lookup
+          ON permission_rules(actor_id, tool_name, action_name);
+
+        CREATE TABLE approval_requests (
+          id TEXT PRIMARY KEY,
+          actor_id TEXT NOT NULL,
+          tool_name TEXT NOT NULL,
+          action_name TEXT NOT NULL,
+          target TEXT NOT NULL,
+          action_json TEXT NOT NULL,
+          action_hash TEXT NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('pending', 'approved', 'rejected', 'consumed')),
+          requested_at TEXT NOT NULL,
+          reviewed_at TEXT,
+          reviewed_by TEXT,
+          consumed_at TEXT
+        ) STRICT;
+
+        CREATE INDEX idx_approval_requests_status
+          ON approval_requests(status, requested_at DESC);
+      `);
+    },
+  },
 ];
 
 function applyMigrations(database: ScopyDatabase): void {
