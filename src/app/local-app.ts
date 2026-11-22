@@ -182,6 +182,7 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
         const b = await readBody(request);
         const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
         new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
+        browserTool.register(gateway);
         const runtime = new RuntimeEngine(database, gateway);
         const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
         const result = await executor.executeReadySteps(segments[3]!, {}, typeof b.approvalId === "string" ? b.approvalId : undefined);
