@@ -1,8 +1,9 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { isIP } from "node:net";
+import { createServer, isIP } from "node:net";
 import { join } from "node:path";
 import type { ActionRequest } from "../permissions/types.js";
 import type { ToolExecutionContext } from "./tool-gateway.js";
@@ -100,16 +101,24 @@ export interface BrowserToolOptions {
 
 export class BrowserTool {
   private readonly profileDir: string;
-  private readonly debugPort: number;
-  private launching = false;
+  private debugPort: number;
+  private browserEndpoint: string | undefined;
+  private launchPromise: Promise<string> | undefined;
+  private child: ChildProcess | undefined;
 
   constructor(options: BrowserToolOptions) {
-    this.profileDir = join(options.homeDir, "browser-profile");
-    this.debugPort = options.debugPort ?? 9222;
+    this.profileDir = join(options.homeDir, "browser-profiles", randomUUID());
+    this.debugPort = options.debugPort ?? 0;
   }
 
   register(gateway: ToolGateway): void {
     gateway.register("browser", "Open a public web page in Scopy's isolated browser profile and extract readable page text. No clicks, form submissions, downloads, or account sessions are exposed.", (request, context) => this.handle(request, context));
+  }
+
+  close(): void {
+    this.child?.kill();
+    this.child = undefined;
+    this.browserEndpoint = undefined;
   }
 
   private executable(): string {
@@ -125,32 +134,50 @@ export class BrowserTool {
     return found;
   }
 
+  private async availablePort(): Promise<number> {
+    if (this.debugPort > 0) return this.debugPort;
+    const probe = createServer();
+    await new Promise<void>((resolve, reject) => {
+      probe.once("error", reject);
+      probe.listen(0, "127.0.0.1", () => resolve());
+    });
+    const address = probe.address();
+    const port = typeof address === "object" && address ? address.port : 0;
+    await new Promise<void>((resolve, reject) => probe.close(error => error ? reject(error) : resolve()));
+    if (!port) throw new Error("Could not allocate a private browser debugging port.");
+    return port;
+  }
+
   private async ensureBrowser(): Promise<string> {
-    const endpoint = "http://127.0.0.1:" + this.debugPort + "/json/version";
+    if (this.browserEndpoint) return this.browserEndpoint;
+    if (this.launchPromise) return this.launchPromise;
+    this.launchPromise = this.launchIsolatedBrowser();
     try {
-      const existing = await fetch(endpoint, { signal: AbortSignal.timeout(1500) });
-      if (existing.ok) {
-        const data = await existing.json() as { webSocketDebuggerUrl?: string };
-        if (data.webSocketDebuggerUrl?.startsWith("ws://127.0.0.1:")) return data.webSocketDebuggerUrl;
-      }
-    } catch { /* launch the isolated profile below */ }
-    if (!this.launching) {
-      this.launching = true;
-      await mkdir(this.profileDir, { recursive: true });
-      const executable = this.executable();
-      const child = spawn(executable, [
-        "--remote-debugging-address=127.0.0.1",
-        "--remote-debugging-port=" + this.debugPort,
-        "--user-data-dir=" + this.profileDir,
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--disable-sync",
-        "--disable-background-networking",
-        "about:blank",
-      ], { detached: true, stdio: "ignore", windowsHide: true });
-      child.unref();
+      this.browserEndpoint = await this.launchPromise;
+      return this.browserEndpoint;
+    } finally {
+      this.launchPromise = undefined;
     }
+  }
+
+  private async launchIsolatedBrowser(): Promise<string> {
+    await mkdir(this.profileDir, { recursive: true });
+    this.debugPort = await this.availablePort();
+    const executable = this.executable();
+    const child = spawn(executable, [
+      "--remote-debugging-address=127.0.0.1",
+      "--remote-debugging-port=" + this.debugPort,
+      "--user-data-dir=" + this.profileDir,
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-sync",
+      "--disable-background-networking",
+      "about:blank",
+    ], { stdio: "ignore", windowsHide: true });
+    this.child = child;
+    const endpoint = "http://127.0.0.1:" + this.debugPort + "/json/version";
     for (let attempt = 0; attempt < 30; attempt++) {
+      if (child.exitCode !== null) throw new Error("The isolated browser exited before becoming ready.");
       await new Promise(resolve => setTimeout(resolve, 500));
       try {
         const response = await fetch(endpoint, { signal: AbortSignal.timeout(1500) });
@@ -158,9 +185,10 @@ export class BrowserTool {
           const data = await response.json() as { webSocketDebuggerUrl?: string };
           if (data.webSocketDebuggerUrl?.startsWith("ws://127.0.0.1:")) return data.webSocketDebuggerUrl;
         }
-      } catch { /* keep waiting for the browser process */ }
+      } catch { /* wait for the isolated browser process */ }
     }
-    throw new Error("The isolated browser did not start. Check whether the configured debugging port is already in use.");
+    child.kill();
+    throw new Error("The isolated browser did not start within 15 seconds.");
   }
 
   private async handle(request: ActionRequest, context?: ToolExecutionContext): Promise<unknown> {
