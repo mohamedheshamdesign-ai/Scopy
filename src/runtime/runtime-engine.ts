@@ -87,7 +87,7 @@ export class RuntimeEngine {
     const startedAt = new Date(startedAtMs).toISOString();
     const requestJson = serialize(request);
     const previousCheckpoint = options.resumeFromRunId
-      ? this.getLatestCheckpoint(options.resumeFromRunId)
+      ? this.getResumeCheckpoint(options.resumeFromRunId, request)
       : null;
 
     this.database.prepare(`
@@ -142,6 +142,10 @@ export class RuntimeEngine {
     options.onStarted?.(runId);
 
     try {
+      if (controller.signal.aborted) {
+        const reason = controller.signal.reason;
+        throw reason instanceof Error ? reason : new RuntimeCancelledError();
+      }
       const work = this.gateway.execute<T>(request, approvalId, context);
       const output = await Promise.race([work, abortPromise]);
       const outputJson = serialize(output);
@@ -213,6 +217,25 @@ export class RuntimeEngine {
       WHERE run_id = ? ORDER BY sequence DESC LIMIT 1
     `).get(runId) as { checkpoint_json: string } | undefined;
     return row ? JSON.parse(row.checkpoint_json) as unknown : null;
+  }
+
+  private getResumeCheckpoint(runId: string, request: ActionRequest): unknown | null {
+    const row = this.database.prepare(`
+      SELECT actor_id, tool_name, action_name, target
+      FROM execution_runs WHERE id = ?
+    `).get(runId) as {
+      actor_id: string; tool_name: string; action_name: string; target: string;
+    } | undefined;
+    if (!row) throw new Error(`Cannot resume: source execution ${runId} was not found.`);
+    if (
+      row.actor_id !== request.actorId ||
+      row.tool_name !== request.tool ||
+      row.action_name !== request.action ||
+      row.target !== request.target
+    ) {
+      throw new Error("Cannot resume from a run with a different actor, tool, action, or target.");
+    }
+    return this.getLatestCheckpoint(runId);
   }
 
   private validateLimits(timeoutMs: number, maxOutputBytes: number): void {
