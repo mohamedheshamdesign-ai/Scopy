@@ -22,6 +22,8 @@ import { ToolGateway } from "../tools/tool-gateway.js";
 import { FilesystemTool } from "../tools/filesystem-tool.js";
 import { TerminalTool } from "../tools/terminal-tool.js";
 import { BrowserTool } from "../tools/browser-tool.js";
+import { McpServerManager } from "../integrations/mcp/mcp-server-manager.js";
+import { McpTool } from "../tools/mcp-tool.js";
 import { PlanStepExecutor } from "../orchestrator/step-executor.js";
 import { BackupService } from "../backup/backup-service.js";
 import { LocalBrowserSession } from "../browser/browser-session.js";
@@ -90,6 +92,7 @@ export class DashboardServer {
   private token = "";
   private boundPort = 4173;
   private readonly browser: LocalBrowserSession;
+  private readonly mcp: McpServerManager;
 
   constructor(
     private readonly config: ScopyConfig,
@@ -97,6 +100,7 @@ export class DashboardServer {
     private readonly options: DashboardOptions = {},
   ) {
     this.browser = new LocalBrowserSession(config.homeDir);
+    this.mcp = new McpServerManager(config.homeDir);
   }
 
   async start(): Promise<void> {
@@ -228,6 +232,7 @@ export class DashboardServer {
         runs: runs.list(50),
         approvals: approvals.listAll(100),
         permissions: permissions.list(),
+        mcpServers: await this.mcp.list(),
         audit,
         workspace: this.config.workspaceDir,
         safetyProfile: this.config.safetyProfile,
@@ -352,6 +357,7 @@ export class DashboardServer {
       new FilesystemTool({ workspaceRoot: this.config.workspaceDir }).register(gateway);
       new TerminalTool(this.config.workspaceDir).register(gateway);
       new BrowserTool(this.config.homeDir).register(gateway);
+      new McpTool(this.mcp).register(gateway);
       const runtime = new RuntimeEngine(this.database, gateway);
       const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
       const result = await executor.executeReadySteps(runExecute[1]!, {}, optionalString(input, "approvalId", 36));
@@ -502,6 +508,65 @@ export class DashboardServer {
         maxOutputTokens: 1200,
       }, { actorId: ACTOR, purpose: "synthesize specialist delegation" });
       json(response, 200, { contributions, synthesis: synthesis.text, model: synthesis.model });
+      return;
+    }
+
+
+    if (method === "POST" && path === "/api/mcp/servers") {
+      const input = await body(request);
+      if (!Array.isArray(input.args) || !Array.isArray(input.passEnv)) throw new Error("MCP args and passEnv must be JSON arrays.");
+      const server = await this.mcp.add({
+        id: stringField(input, "id", 40),
+        command: stringField(input, "command", 32),
+        args: input.args,
+        passEnv: input.passEnv,
+        timeoutMs: input.timeoutMs ?? 30000,
+      });
+      json(response, 201, server);
+      return;
+    }
+
+    const mcpServerMatch = path.match(/^\/api\/mcp\/servers\/([a-z][a-z0-9-]{1,39})$/);
+    if (mcpServerMatch && method === "DELETE") {
+      json(response, 200, { removed: await this.mcp.remove(mcpServerMatch[1]!) });
+      return;
+    }
+
+    const mcpToolsMatch = path.match(/^\/api\/mcp\/servers\/([a-z][a-z0-9-]{1,39})\/tools$/);
+    if (mcpToolsMatch && method === "POST") {
+      json(response, 200, { tools: await this.mcp.listTools(mcpToolsMatch[1]!) });
+      return;
+    }
+
+    if (method === "POST" && path === "/api/mcp/requests") {
+      const input = await body(request);
+      const serverId = stringField(input, "serverId", 40);
+      const toolName = stringField(input, "toolName", 128);
+      const args = input.arguments;
+      if (typeof args !== "object" || args === null || Array.isArray(args)) throw new Error("MCP arguments must be a JSON object.");
+      json(response, 201, approvals.request({
+        actorId: ACTOR, tool: "mcp", action: "call", target: serverId + "/" + toolName,
+        payload: { arguments: args as Record<string, unknown> },
+      }));
+      return;
+    }
+
+    if (method === "POST" && path === "/api/mcp/execute") {
+      const input = await body(request);
+      const serverId = stringField(input, "serverId", 40);
+      const toolName = stringField(input, "toolName", 128);
+      const args = input.arguments;
+      if (typeof args !== "object" || args === null || Array.isArray(args)) throw new Error("MCP arguments must be a JSON object.");
+      const approvalId = stringField(input, "approvalId", 36);
+      const action = {
+        actorId: ACTOR, tool: "mcp", action: "call", target: serverId + "/" + toolName,
+        payload: { arguments: args as Record<string, unknown> },
+      };
+      const gateway = new ToolGateway(new ExecutionGuard(this.database, policy, approvals));
+      new McpTool(this.mcp).register(gateway);
+      const runtime = new RuntimeEngine(this.database, gateway);
+      const result = await runtime.execute(action, { timeoutMs: 125000, maxOutputBytes: 1_048_576 }, approvalId);
+      json(response, 200, result);
       return;
     }
 
