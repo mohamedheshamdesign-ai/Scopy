@@ -11,6 +11,7 @@ import { ApprovalRequiredError, ExecutionGuard, PermissionDeniedError } from "..
 import { PermissionRepository } from "../src/permissions/permission-repository.js";
 import { PolicyEngine } from "../src/permissions/policy-engine.js";
 import { FilesystemSandboxError, FilesystemTool } from "../src/tools/filesystem-tool.js";
+import { TerminalTool } from "../src/tools/terminal-tool.js";
 import { ToolGateway } from "../src/tools/tool-gateway.js";
 
 async function withGateway(run: (context: {
