@@ -52,7 +52,7 @@ switch ([string]$request.action) {
     $bitmap.Save($stream, [System.Drawing.Imaging.ImageFormat]::Jpeg)
     $data = [Convert]::ToBase64String($stream.ToArray())
     $graphics.Dispose(); $bitmap.Dispose(); $stream.Dispose()
-    if ($data.Length -gt 1800000) { throw "Screenshot exceeds the 1.35 MiB limit." }
+    if ($data.Length -gt 900000) { throw "Screenshot exceeds the 675 KiB limit." }
     @{ mimeType = "image/jpeg"; data = $data; windowTitle = $window.Current.Name; width = $width; height = $height } | ConvertTo-Json -Depth 4 -Compress
   }
   'invoke' {
@@ -160,7 +160,7 @@ export class WindowsComputerTool {
       }, 20_000);
       const collect = (chunk: Buffer, stream: "stdout" | "stderr"): void => {
         size += chunk.length;
-        const maxBytes = request.action === "screenshot" ? 2_000_000 : 48 * 1024;
+        const maxBytes = request.action === "screenshot" ? 1_048_576 : 48 * 1024;
         if (size > maxBytes) {
           child.kill();
           finish(new Error("Windows computer action output exceeded 48 KiB."));
