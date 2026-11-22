@@ -1,7 +1,16 @@
 import type { ActionRequest } from "../permissions/types.js";
 import { ExecutionGuard } from "../permissions/execution-guard.js";
 
-export type ToolHandler = (request: ActionRequest) => unknown | Promise<unknown>;
+export interface ToolExecutionContext {
+  readonly signal: AbortSignal;
+  readonly previousCheckpoint: unknown | null;
+  checkpoint(data: unknown): Promise<void>;
+}
+
+export type ToolHandler = (
+  request: ActionRequest,
+  context?: ToolExecutionContext,
+) => unknown | Promise<unknown>;
 
 export interface RegisteredTool {
   readonly name: string;
@@ -33,12 +42,16 @@ export class ToolGateway {
     }));
   }
 
-  async execute<T = unknown>(request: ActionRequest, approvalId?: string): Promise<T> {
+  async execute<T = unknown>(
+    request: ActionRequest,
+    approvalId?: string,
+    context?: ToolExecutionContext,
+  ): Promise<T> {
     const handler = this.handlers.get(request.tool);
     if (!handler) throw new Error(`Unknown tool: ${request.tool}`);
     return this.guard.execute(
       request,
-      () => handler(request) as T | Promise<T>,
+      () => handler(request, context) as T | Promise<T>,
       approvalId,
     );
   }
