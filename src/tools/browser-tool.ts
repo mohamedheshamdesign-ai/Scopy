@@ -228,6 +228,7 @@ export class BrowserTool {
       if (typeof attached.sessionId !== "string") throw new Error("Browser could not reconnect to the current page.");
       const sessionId = attached.sessionId;
       await client.command("Runtime.enable", {}, sessionId);
+      await client.command("Page.setDownloadBehavior", { behavior: "deny" }, sessionId);
       if (request.action === "click") {
         const payload = request.payload as { selector?: unknown } | undefined;
         if (typeof payload?.selector !== "string" || !payload.selector.trim() || payload.selector.length > 500) throw new Error("Click requires a CSS selector of at most 500 characters.");
@@ -270,6 +271,7 @@ export class BrowserTool {
     const value = result?.result?.value;
     if (!value || typeof value !== "object") throw new Error("Browser page did not return readable content.");
     const page = value as { title?: unknown; url?: unknown; text?: unknown };
+    if (typeof page.url === "string") { const checked = await validatePublicUrl(page.url); this.currentUrl = checked.toString(); }
     return {
       title: typeof page.title === "string" ? page.title.slice(0, 300) : "",
       url: typeof page.url === "string" ? page.url : "",
