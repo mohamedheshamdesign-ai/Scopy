@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { mock } from "node:test";
 import test from "node:test";
 import { LocalOpenAIProvider } from "../src/ai/local-openai-provider.js";
@@ -49,7 +52,7 @@ test("local provider health and chat use OpenAI-compatible endpoints", async () 
 });
 
 test("provider router blocks cloud egress unless explicitly opted in and audits both outcomes", async () => {
-  const home = await import("node:fs/promises").then(({ mkdtemp }) => mkdtemp("scopy-ai-test-"));
+  const home = await mkdtemp(join(tmpdir(), "scopy-ai-test-"));
   const database = openDatabase(loadConfig(home));
   const cloud: ModelProvider = {
     descriptor: {
@@ -87,6 +90,6 @@ test("provider router blocks cloud egress unless explicitly opted in and audits 
     ]);
   } finally {
     database.close();
-    await import("node:fs/promises").then(({ rm }) => rm(home, { recursive: true, force: true }));
+    await rm(home, { recursive: true, force: true });
   }
 });
