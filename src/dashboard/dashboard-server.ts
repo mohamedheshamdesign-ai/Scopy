@@ -164,6 +164,32 @@ export class DashboardServer {
       return;
     }
     const url = new URL(request.url ?? "/", "http://" + host);
+
+    if (request.method === "GET" && url.pathname === "/manifest.webmanifest") {
+      response.writeHead(200, { "content-type": "application/manifest+json; charset=utf-8", "cache-control": "no-cache" });
+      response.end(JSON.stringify({
+        name: "Scopy Local Workspace",
+        short_name: "Scopy",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        background_color: "#07111f",
+        theme_color: "#07111f",
+        icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }],
+      }));
+      return;
+    }
+    if (request.method === "GET" && url.pathname === "/icon.svg") {
+      response.writeHead(200, { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=86400" });
+      response.end('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2563eb"/><stop offset="1" stop-color="#5dd6e8"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="#07111f"/><path d="M345 145c-26-25-58-38-98-38-83 0-143 61-143 148s60 148 146 148c43 0 79-14 107-42v-99H247v57h43v14c-10 8-22 12-39 12-47 0-77-35-77-90s30-90 75-90c22 0 40 8 55 23z" fill="url(#g)"/></svg>');
+      return;
+    }
+    if (request.method === "GET" && url.pathname === "/sw.js") {
+      response.writeHead(200, { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-cache", "service-worker-allowed": "/" });
+      response.end("const CACHE='scopy-shell-v1';const SHELL=['/','/manifest.webmanifest','/icon.svg'];self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin||u.pathname.startsWith('/api/'))return;e.respondWith(fetch(e.request).then(r=>{if(r.ok){const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));}return r;}).catch(()=>caches.match(e.request).then(r=>r||caches.match('/'))));});");
+      return;
+    }
+
     if (request.method === "GET" && url.pathname === "/") {
       response.writeHead(200, {
         "content-type": "text/html; charset=utf-8",
@@ -179,12 +205,30 @@ export class DashboardServer {
       json(response, 200, { status: "ok", app: "Scopy", localOnly: true });
       return;
     }
+
+    if (url.pathname === "/api/session" && method === "POST") {
+      const authorization = request.headers.authorization ?? "";
+      if (!authorization.startsWith("Bearer ") || !safeEqual(authorization.slice(7), this.token)) {
+        json(response, 401, { error: "Dashboard token is invalid." });
+        return;
+      }
+      response.writeHead(204, {
+        "set-cookie": "scopy_session=" + this.token + "; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400",
+        "cache-control": "no-store",
+      });
+      response.end();
+      return;
+    }
+
     if (!url.pathname.startsWith("/api/")) {
       json(response, 404, { error: "Not found." });
       return;
     }
     const authorization = request.headers.authorization ?? "";
-    if (!authorization.startsWith("Bearer ") || !safeEqual(authorization.slice(7), this.token)) {
+    const bearer = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+    const cookie = (request.headers.cookie ?? "").split(";").map((part) => part.trim())
+      .find((part) => part.startsWith("scopy_session="))?.slice("scopy_session=".length) ?? "";
+    if (!safeEqual(bearer || cookie, this.token)) {
       json(response, 401, { error: "Dashboard authorization required." });
       return;
     }
