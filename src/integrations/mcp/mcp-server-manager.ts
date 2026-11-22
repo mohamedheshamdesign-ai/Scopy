@@ -37,7 +37,7 @@ interface McpSession {
 
 const ALLOWED_COMMANDS = new Set(["node", "node.exe", "python", "python.exe", "powershell.exe"]);
 const MAX_CONFIG_BYTES = 256 * 1024;
-const MAX_RPC_BYTES = 1024 * 1024;
+const MAX_RPC_BYTES = 768 * 1024;
 
 function validateServer(value: unknown): McpServerDefinition {
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("MCP server definition must be an object.");
