@@ -132,7 +132,7 @@ test("a specific deny overrides a broad allow rule", async () => {
     });
     assert.equal(policy.evaluate({
       actorId: "agent:marketing", tool: "filesystem", action: "read",
-      target: "C:\\private\\secrets.txt",
+      target: "c:/private/secrets.txt",
     }).effect, "deny");
   });
 });
