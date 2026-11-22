@@ -320,6 +320,9 @@ async function main(): Promise<void> {
           if (tool !== "filesystem") {
             throw new Error("The CLI currently registers only the filesystem tool for plan-step execution.");
           }
+          if (action !== "read" && action !== "write") {
+            throw new Error("Filesystem action must be read or write.");
+          }
           const existingRun = runs.getById(runId);
           if (!existingRun) throw new Error(`Plan run not found: ${runId}`);
           let payload: Record<string, unknown> = {};
@@ -329,6 +332,9 @@ async function main(): Promise<void> {
               throw new Error("Action payload must be a JSON object.");
             }
             payload = parsed as Record<string, unknown>;
+          }
+          if (action === "write" && typeof payload.content !== "string") {
+            throw new Error('Filesystem write requires payload JSON with a string "content" field.');
           }
           const permissions = new PermissionRepository(database);
           const policy = new PolicyEngine(permissions);
