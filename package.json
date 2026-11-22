@@ -14,8 +14,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test dist/tests/*.test.js",
     "start": "node dist/src/cli.js",
-    "check": "npm run typecheck && npm test",
-    "dashboard": "tsx src/cli.ts dashboard"
+    "check": "npm run typecheck && npm test"
   },
   "dependencies": {
     "better-sqlite3": "12.11.1"
