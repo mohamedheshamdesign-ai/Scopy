@@ -3,7 +3,8 @@ export type PlanStatus = "draft" | "approved" | "rejected";
 
 export type PlanAction =
   | { readonly tool: "filesystem"; readonly action: "read" | "list" | "mkdir"; readonly target: string }
-  | { readonly tool: "filesystem"; readonly action: "write"; readonly target: string; readonly payload: { readonly content: string } };
+  | { readonly tool: "filesystem"; readonly action: "write"; readonly target: string; readonly payload: { readonly content: string } }
+  | { readonly tool: "browser"; readonly action: "open"; readonly target: string };
 
 export interface PlanStepDraft {
   readonly id: string;
@@ -45,6 +46,18 @@ function boundedString(value: unknown, field: string, max: number): string {
 
 export function validatePlanAction(value: unknown, stepId: string): PlanAction {
   if (!record(value)) throw new Error(`Plan step ${stepId} action must be an object.`);
+  if (value.tool === "browser") {
+    if (value.action !== "open" || Object.keys(value).some((key) => !["tool", "action", "target"].includes(key))) {
+      throw new Error("Plan step " + stepId + " browser action must be an open action with only a target URL.");
+    }
+    const target = boundedString(value.target, "step " + stepId + " browser URL", 2048);
+    let url: URL;
+    try { url = new URL(target); } catch { throw new Error("Plan step " + stepId + " browser target must be a valid URL."); }
+    if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) {
+      throw new Error("Plan step " + stepId + " browser URL must use http/https and contain no embedded credentials.");
+    }
+    return { tool: "browser", action: "open", target: url.toString() };
+  }
   if (value.tool !== "filesystem") throw new Error(`Plan step ${stepId} uses an unsupported tool.`);
   if (value.action !== "read" && value.action !== "write" && value.action !== "list" && value.action !== "mkdir") throw new Error(`Plan step ${stepId} filesystem action must be read, list, mkdir, or write.`);
   const allowedKeys = value.action === "write" ? ["tool", "action", "target", "payload"] : ["tool", "action", "target"];
