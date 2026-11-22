@@ -191,6 +191,64 @@ const migrations: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 6,
+    name: "orchestrator_run_lifecycle",
+    up(database) {
+      database.exec(`
+        CREATE TABLE orchestrator_runs (
+          id TEXT PRIMARY KEY,
+          plan_id TEXT NOT NULL REFERENCES orchestrator_plans(id) ON DELETE RESTRICT,
+          status TEXT NOT NULL CHECK(status IN ('running', 'succeeded', 'failed', 'cancelled')),
+          started_by TEXT NOT NULL,
+          started_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          finished_at TEXT,
+          error_text TEXT
+        ) STRICT;
+
+        CREATE INDEX idx_orchestrator_runs_status_started
+          ON orchestrator_runs(status, started_at DESC);
+        CREATE INDEX idx_orchestrator_runs_plan_started
+          ON orchestrator_runs(plan_id, started_at DESC);
+
+        CREATE TABLE orchestrator_run_steps (
+          run_id TEXT NOT NULL REFERENCES orchestrator_runs(id) ON DELETE CASCADE,
+          step_id TEXT NOT NULL,
+          position INTEGER NOT NULL CHECK(position BETWEEN 1 AND 15),
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          expected_output TEXT NOT NULL,
+          risk TEXT NOT NULL CHECK(risk IN ('low', 'medium', 'high')),
+          dependencies_json TEXT NOT NULL DEFAULT '[]',
+          status TEXT NOT NULL CHECK(status IN ('pending', 'ready', 'running', 'succeeded', 'failed', 'skipped')),
+          attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+          result_text TEXT,
+          error_text TEXT,
+          started_at TEXT,
+          finished_at TEXT,
+          PRIMARY KEY(run_id, step_id),
+          UNIQUE(run_id, position)
+        ) STRICT;
+
+        CREATE INDEX idx_orchestrator_run_steps_status
+          ON orchestrator_run_steps(run_id, status, position);
+
+        CREATE TABLE orchestrator_run_checkpoints (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL REFERENCES orchestrator_runs(id) ON DELETE CASCADE,
+          sequence INTEGER NOT NULL,
+          event_type TEXT NOT NULL,
+          checkpoint_json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(run_id, sequence)
+        ) STRICT;
+
+        CREATE INDEX idx_orchestrator_run_checkpoints_sequence
+          ON orchestrator_run_checkpoints(run_id, sequence DESC);
+      `);
+    },
+  },
 ];
 
 function applyMigrations(database: ScopyDatabase): void {
