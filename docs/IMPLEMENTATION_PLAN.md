@@ -22,7 +22,7 @@ Build small, testable vertical slices. Every consequential action must pass the 
 
 ## Phase 1 — Core foundation
 
-1. [ ] Complete typed environment/configuration validation and safe-mode profiles. Central local paths and a read-only `doctor` command are implemented.
+1. [x] Typed validation for `SCOPY_HOME`, `SCOPY_WORKSPACE_DIR`, and `SCOPY_SAFETY_PROFILE`; `strict` and `workspace_assist` profiles are implemented. Central local paths and a truly read-only `doctor` command are implemented. Broader typed validation for optional provider settings remains open.
 2. [x] Structured local JSON logging with secret redaction and bounded rotation. CLI lifecycle and guarded step events are logged without prompts or file contents.
 3. [ ] Stable error taxonomy and consistent error serialization.
 4. [x] SQLite database initialization and additive migration runner (schema migrations v1-v8).
