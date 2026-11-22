@@ -75,6 +75,7 @@ Do not commit directly to `main`.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
 - [ADR 0001 — SQLite driver](docs/decisions/0001-sqlite-driver.md)
+- [Windows Local AI Runtime](docs/LOCAL_AI_WINDOWS.md)
 
 ## Current milestone
 
@@ -131,3 +132,10 @@ npm run dev -- memory list
 ```
 
 Retrieval evaluation begins with deterministic unit tests. Embeddings, automatic memory extraction/consolidation, cloud adapters, streaming, tool calling, and provider failover are intentionally not enabled yet.
+
+
+### Windows local AI runtime
+
+A conservative Windows/Vulkan launcher, E:-scoped Hugging Face cache, model integrity/resource diagnostics, exact model ID discovery, and a Scopy CLI throughput benchmark are documented in [docs/LOCAL_AI_WINDOWS.md](docs/LOCAL_AI_WINDOWS.md).
+
+The local runtime launcher does not download models: it requires the already-cached Q4_K_M GGUF, binds only to 127.0.0.1, uses one sequence, and leaves GPU layer placement to llama.cpp memory fitting. Flash Attention, quantized KV cache, and speculative decoding are not enabled in the baseline unless separately measured and explicitly selected.
