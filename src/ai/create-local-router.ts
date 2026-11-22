@@ -18,11 +18,20 @@ export function createLocalAiRouter(
     throw new Error("SCOPY_LOCAL_AI_CONTEXT_TOKENS must be an integer between 1 and 262144.");
   }
 
+  // Local models can take several minutes to process long prompts and generate
+  // complete answers. Keep health/model-list requests on their shorter limits.
+  const rawTimeoutMs = environment.SCOPY_LOCAL_AI_TIMEOUT_MS;
+  const timeoutMs = rawTimeoutMs === undefined ? 600_000 : Number(rawTimeoutMs);
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 600_000) {
+    throw new Error("SCOPY_LOCAL_AI_TIMEOUT_MS must be an integer between 1 and 600000.");
+  }
+
   const router = new ProviderRouter(database);
   router.register(new LocalOpenAIProvider({
     baseUrl,
     model,
     maxContextTokens,
+    timeoutMs,
     ...(environment.SCOPY_LOCAL_AI_API_KEY
       ? { apiKey: environment.SCOPY_LOCAL_AI_API_KEY }
       : {}),
