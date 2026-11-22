@@ -24,6 +24,7 @@ import { TerminalTool } from "../tools/terminal-tool.js";
 import { BrowserTool } from "../tools/browser-tool.js";
 import { McpServerManager } from "../integrations/mcp/mcp-server-manager.js";
 import { McpTool } from "../tools/mcp-tool.js";
+import { WindowsComputerTool } from "../tools/windows-computer-tool.js";
 import { PlanStepExecutor } from "../orchestrator/step-executor.js";
 import { BackupService } from "../backup/backup-service.js";
 import { LocalBrowserSession } from "../browser/browser-session.js";
@@ -358,6 +359,7 @@ export class DashboardServer {
       new TerminalTool(this.config.workspaceDir).register(gateway);
       new BrowserTool(this.config.homeDir).register(gateway);
       new McpTool(this.mcp).register(gateway);
+      new WindowsComputerTool().register(gateway);
       const runtime = new RuntimeEngine(this.database, gateway);
       const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
       const result = await executor.executeReadySteps(runExecute[1]!, {}, optionalString(input, "approvalId", 36));
@@ -566,6 +568,50 @@ export class DashboardServer {
       new McpTool(this.mcp).register(gateway);
       const runtime = new RuntimeEngine(this.database, gateway);
       const result = await runtime.execute(action, { timeoutMs: 125000, maxOutputBytes: 1_048_576 }, approvalId);
+      json(response, 200, result);
+      return;
+    }
+
+
+    if (method === "POST" && path === "/api/computer/requests") {
+      const input = await body(request);
+      const action = stringField(input, "computerAction", 20);
+      const windowTitle = stringField(input, "windowTitle", 200);
+      let payload: Record<string, unknown>;
+      if (action === "snapshot") {
+        payload = { limit: input.limit ?? 100 };
+      } else if (action === "invoke") {
+        payload = {
+          ...(typeof input.automationId === "string" && input.automationId ? { automationId: input.automationId } : {}),
+          ...(typeof input.name === "string" && input.name ? { name: input.name } : {}),
+        };
+      } else if (action === "set_value") {
+        payload = {
+          ...(typeof input.automationId === "string" && input.automationId ? { automationId: input.automationId } : {}),
+          ...(typeof input.name === "string" && input.name ? { name: input.name } : {}),
+          value: stringField(input, "value", 10000),
+        };
+      } else {
+        throw new Error("Computer action must be snapshot, invoke, or set_value.");
+      }
+      json(response, 201, approvals.request({
+        actorId: ACTOR, tool: "computer", action, target: windowTitle, payload,
+      }));
+      return;
+    }
+
+    if (method === "POST" && path === "/api/computer/execute") {
+      const input = await body(request);
+      const action = stringField(input, "computerAction", 20);
+      const windowTitle = stringField(input, "windowTitle", 200);
+      const approvalId = stringField(input, "approvalId", 36);
+      const payload = input.payload;
+      if (typeof payload !== "object" || payload === null || Array.isArray(payload)) throw new Error("Computer payload is required.");
+      const requestAction = { actorId: ACTOR, tool: "computer", action, target: windowTitle, payload: payload as Record<string, unknown> };
+      const gateway = new ToolGateway(new ExecutionGuard(this.database, policy, approvals));
+      new WindowsComputerTool().register(gateway);
+      const runtime = new RuntimeEngine(this.database, gateway);
+      const result = await runtime.execute(requestAction, { timeoutMs: 30000, maxOutputBytes: 65536 }, approvalId);
       json(response, 200, result);
       return;
     }
