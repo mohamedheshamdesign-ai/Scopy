@@ -193,3 +193,9 @@ npm run dev -- dashboard
 Open the exact loopback URL printed in PowerShell. The URL contains a one-time local access token fragment; do not share it or a screenshot that exposes it. The token is retained under `SCOPY_HOME\secrets\dashboard-token.txt`. The dashboard binds to `127.0.0.1` only, validates the Host and Origin headers, requires a bearer token for API calls, and does not load remote scripts, fonts, analytics, or assets.
 
 The dashboard currently provides a local overview, assistant/specialist chat, task and project management, user-confirmed memory, plan review, guarded run execution, approval review, permission rules, audit activity, and verified database backups. Chat requires a configured local model in the same PowerShell session. Specialist profiles remain advisory-only; browser automation, general terminal execution, desktop control, and external account integrations are not implied by the dashboard.
+
+
+
+### Controlled terminal
+
+The local dashboard includes a constrained terminal action. It launches only `node`, `git`, `python`, or `powershell.exe` as a direct child process (no shell), requires an exact one-time approval by default, confines the working directory to the configured Scopy workspace, limits arguments, execution time (up to two minutes), and combined output (64 KiB). A process that spawns detached child processes may outlive the direct child timeout; this is not an OS-level sandbox. Never pass credentials in command-line arguments.
