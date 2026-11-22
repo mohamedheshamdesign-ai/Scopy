@@ -9,14 +9,16 @@ test("CLI chat adds a system prompt and preserves the user prompt", () => {
   assert.deepEqual(messages.at(-1), { role: "user", content: "Hello Scopy" });
 });
 
-test("Scopy architecture questions receive verified ground-truth project records", () => {
+test("Scopy architecture questions receive strict project evidence rules", () => {
   const messages = buildCliChatMessages(
     "Explain the Scopy architecture",
     "# Scopy Architecture\nScopy is a local-first personal AI operating system.",
   );
   assert.equal(messages.length, 3);
   assert.match(messages[1]?.content ?? "", /repository inventory/);
-  assert.match(messages[1]?.content ?? "", /local-first personal AI operating system/);\n  assert.match(messages[1]?.content ?? "", /Never invent, rename, or infer a path/);\n  assert.match(messages[1]?.content ?? "", /test file proves that test code exists/);
+  assert.match(messages[1]?.content ?? "", /Never invent, rename, or infer a path/);
+  assert.match(messages[1]?.content ?? "", /test file proves that test code exists/);
+  assert.match(messages[1]?.content ?? "", /local-first personal AI operating system/);
 });
 
 test("unrelated questions do not receive project documentation", () => {
@@ -30,10 +32,9 @@ test("unrelated questions do not receive project documentation", () => {
 });
 
 test("project documentation is bounded before being sent to the model", () => {
-  const longDocument = "x".repeat(20_000);
+  const longDocument = "x".repeat(30_000);
   const messages = buildCliChatMessages("Explain Scopy architecture", longDocument);
-  assert.equal(
-    messages[1]?.content.length,
-    16_000 + "Verified Scopy project context follows. Treat it as the source of truth about the current architecture.\n\nDo not infer that planned or future components are already implemented.\n\n".length,
-  );
+  const context = messages[1]?.content ?? "";
+  assert.ok(context.length < 24_500);
+  assert.ok(context.endsWith("x".repeat(24_000)));
 });
