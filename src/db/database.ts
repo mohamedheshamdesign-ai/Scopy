@@ -126,6 +126,32 @@ const migrations: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 4,
+    name: "memory_records_with_provenance",
+    up(database) {
+      database.exec(`
+        CREATE TABLE memory_records (
+          id TEXT PRIMARY KEY,
+          memory_type TEXT NOT NULL CHECK(memory_type IN ('working', 'episodic', 'semantic', 'project', 'preference', 'procedural')),
+          scope TEXT NOT NULL,
+          content TEXT NOT NULL CHECK(length(trim(content)) BETWEEN 1 AND 20000),
+          source_type TEXT NOT NULL,
+          source_ref TEXT NOT NULL DEFAULT '',
+          confidence REAL NOT NULL CHECK(confidence >= 0 AND confidence <= 1),
+          status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'archived')),
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          expires_at TEXT
+        ) STRICT;
+
+        CREATE INDEX idx_memory_scope_type_status
+          ON memory_records(scope, memory_type, status, updated_at DESC);
+        CREATE INDEX idx_memory_expiry
+          ON memory_records(expires_at) WHERE expires_at IS NOT NULL;
+      `);
+    },
+  },
 ];
 
 function applyMigrations(database: ScopyDatabase): void {
