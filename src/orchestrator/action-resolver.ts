@@ -5,6 +5,9 @@ export function resolvePlanAction(action: PlanAction, actorId: string): ActionRe
   const validated = validatePlanAction(action, "resolved");
   const actor = actorId.trim();
   if (!actor) throw new Error("A plan action requires a trusted run actor.");
+  if (validated.tool === "browser") {
+    return { actorId: actor, tool: "browser", action: "open", target: validated.target, payload: {} };
+  }
   if (validated.action !== "write") {
     return { actorId: actor, tool: "filesystem", action: validated.action, target: validated.target, payload: {} };
   }
