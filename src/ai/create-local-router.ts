@@ -12,10 +12,17 @@ export function createLocalAiRouter(
     throw new Error("Set SCOPY_LOCAL_AI_MODEL to the exact model ID exposed by your local model server.");
   }
 
+  const rawContextTokens = environment.SCOPY_LOCAL_AI_CONTEXT_TOKENS;
+  const maxContextTokens = rawContextTokens === undefined ? 8_192 : Number(rawContextTokens);
+  if (!Number.isInteger(maxContextTokens) || maxContextTokens < 1 || maxContextTokens > 262_144) {
+    throw new Error("SCOPY_LOCAL_AI_CONTEXT_TOKENS must be an integer between 1 and 262144.");
+  }
+
   const router = new ProviderRouter(database);
   router.register(new LocalOpenAIProvider({
     baseUrl,
     model,
+    maxContextTokens,
     ...(environment.SCOPY_LOCAL_AI_API_KEY
       ? { apiKey: environment.SCOPY_LOCAL_AI_API_KEY }
       : {}),
