@@ -423,7 +423,7 @@ export class DashboardServer {
       const gateway = new ToolGateway(new ExecutionGuard(this.database, policy, approvals));
       new TerminalTool(this.config.workspaceDir).register(gateway);
       const runtime = new RuntimeEngine(this.database, gateway);
-      const result = await runtime.execute(action, { timeoutMs: timeoutMs + 5000, maxOutputBytes: 65536 }, approvalId);
+      const result = await runtime.execute(action, { timeoutMs: timeoutMs + 5000, maxOutputBytes: 100000 }, approvalId);
       json(response, 200, result);
       return;
     }
