@@ -111,7 +111,7 @@ $("browserClose").addEventListener("click",async()=>{try{await api("/api/browser
 $("team").addEventListener("click",async()=>{const prompt=$("prompt").value.trim();if(!prompt)return;const ids=["brand-designer","business-operator","marketing-strategist"];const box=$("messages");box.insertAdjacentHTML("beforeend",'<div class="msg user">'+esc(prompt)+' <span class="pill">TEAM</span></div>');$("prompt").value="";$("team").disabled=true;try{const r=await api("/api/delegate","POST",{prompt,agentIds:ids});box.insertAdjacentHTML("beforeend",'<div class="msg ai">'+esc(r.synthesis)+'<div class="muted small">Sequential specialist review · '+esc(r.model)+'</div></div>');box.scrollTop=box.scrollHeight;}catch(e){showNotice(e.message,true);}finally{$("team").disabled=false;}});
 
 $("terminalRequest").addEventListener("click",async()=>{
- try{pendingTerminal=terminalPayload();const approval=await api("/api/terminal/requests","POST",pendingTerminal);$("terminalState").textContent="Approval request created: "+approval.id+". Review it in Approvals, then execute the same command."; $("terminalExecute").disabled=true;await refresh();showNotice("Terminal command is waiting for your approval.");}
+ try{pendingTerminal=terminalPayload();const approval=await api("/api/terminal/requests","POST",pendingTerminal);pendingTerminal.requestId=approval.id;$("terminalState").textContent="Approval request created: "+approval.id+". Review it in Approvals, then execute the same command."; $("terminalExecute").disabled=true;await refresh();showNotice("Terminal command is waiting for your approval.");}
  catch(e){showNotice(e.message,true);}
 });
 $("terminalExecute").addEventListener("click",async()=>{
@@ -126,7 +126,7 @@ if(b.dataset.complete){await api("/api/tasks/"+b.dataset.complete,"PATCH",{statu
 if(b.dataset.planApprove||b.dataset.planReject){const id=b.dataset.planApprove||b.dataset.planReject;await api("/api/plans/"+id+"/review","POST",{decision:b.dataset.planApprove?"approved":"rejected"});await refresh();}
 if(b.dataset.run){await api("/api/runs","POST",{planId:b.dataset.run});await refresh();}
 if(b.dataset.execute){const r=await api("/api/runs/"+b.dataset.execute+"/execute","POST",{});await refresh();showNotice(r.pausedAt?"Run paused: "+r.pausedAt.reason:"Run updated.");}
-if(b.dataset.approval){await api("/api/approvals/"+b.dataset.approval+"/review","POST",{decision:b.dataset.decision});if(pendingTerminal&&b.dataset.decision==="approved"){pendingTerminal.approvalId=b.dataset.approval;$("terminalExecute").disabled=false;$("terminalState").textContent="Exact command approved. You can execute it now.";}await refresh();}
+if(b.dataset.approval){await api("/api/approvals/"+b.dataset.approval+"/review","POST",{decision:b.dataset.decision});if(pendingTerminal&&b.dataset.decision==="approved"&&pendingTerminal.requestId===b.dataset.approval){pendingTerminal.approvalId=b.dataset.approval;$("terminalExecute").disabled=false;$("terminalState").textContent="Exact command approved. You can execute it now.";}await refresh();}
 if(b.dataset.archive){await api("/api/memories/"+b.dataset.archive+"/archive","POST",{});await refresh();}
 if(b.dataset.permissionDelete){await api("/api/permissions/"+b.dataset.permissionDelete,"DELETE");await refresh();}
 }catch(err){showNotice(err.message,true);}});
