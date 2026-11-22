@@ -87,6 +87,45 @@ const migrations: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 3,
+    name: "runtime_executions_and_checkpoints",
+    up(database) {
+      database.exec(`
+        CREATE TABLE execution_runs (
+          id TEXT PRIMARY KEY,
+          actor_id TEXT NOT NULL,
+          tool_name TEXT NOT NULL,
+          action_name TEXT NOT NULL,
+          target TEXT NOT NULL,
+          request_json TEXT NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('running', 'succeeded', 'failed', 'cancelled', 'timed_out')),
+          timeout_ms INTEGER NOT NULL,
+          max_output_bytes INTEGER NOT NULL,
+          output_json TEXT,
+          error_text TEXT,
+          started_at TEXT NOT NULL,
+          finished_at TEXT,
+          duration_ms INTEGER
+        ) STRICT;
+
+        CREATE INDEX idx_execution_runs_status_started
+          ON execution_runs(status, started_at DESC);
+
+        CREATE TABLE execution_checkpoints (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL REFERENCES execution_runs(id) ON DELETE CASCADE,
+          sequence INTEGER NOT NULL,
+          checkpoint_json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(run_id, sequence)
+        ) STRICT;
+
+        CREATE INDEX idx_execution_checkpoints_run_sequence
+          ON execution_checkpoints(run_id, sequence DESC);
+      `);
+    },
+  },
 ];
 
 function applyMigrations(database: ScopyDatabase): void {
