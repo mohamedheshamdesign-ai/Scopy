@@ -35,6 +35,6 @@ test("project documentation is bounded before being sent to the model", () => {
   const longDocument = "x".repeat(30_000);
   const messages = buildCliChatMessages("Explain Scopy architecture", longDocument);
   const context = messages[1]?.content ?? "";
-  assert.ok(context.length < 24_500);
-  assert.ok(context.endsWith("x".repeat(24_000)));
+  assert.equal(context.length, 24_000);
+  assert.ok(context.endsWith("x".repeat(20_000)));
 });
