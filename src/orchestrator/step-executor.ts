@@ -78,7 +78,7 @@ export class PlanStepExecutor {
       throw error;
     }
 
-    const serializedOutput = JSON.stringify(execution.output === undefined ? null : execution.output);
+    const serializedOutput = JSON.stringify(execution.output === undefined ? null : execution.output) ?? "null";
     const result = serializedOutput.length > 3_900
       ? `${serializedOutput.slice(0, 3_900)}…[truncated]`
       : serializedOutput;
