@@ -46,7 +46,7 @@ In the Terminal tab, choose Enable approval-gated terminal to save an approval_r
 
 Approving a generated plan authorizes the plan to start; it does not authorize any tool action. Each supported filesystem, browser, or terminal action is evaluated again by the central policy engine. When a rule requires approval, Scopy records the exact actor, tool, action, target, and payload fingerprint. The approval is one-time and is consumed before the handler runs.
 
-The local app resumes an in-memory pending browser or terminal action after approval. If Scopy is closed while an approval is pending, review and recover the action from the CLI rather than assuming it was executed.
+The local app resumes an in-memory pending browser or terminal action after approval. If Scopy is closed while an approval is pending, the pending approval remains in SQLite but the in-memory action mapping is lost; reject that stale approval and submit the action again after restarting Scopy. Do not assume it executed.
 
 ## Current limits
 
