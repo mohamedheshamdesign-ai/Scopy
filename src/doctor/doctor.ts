@@ -19,17 +19,23 @@ export interface DoctorReport {
 
 export async function runDoctor(
   config: ScopyConfig,
-  database: ScopyDatabase,
+  database: ScopyDatabase | undefined,
   environment: Readonly<Record<string, string | undefined>> = process.env,
+  databaseError?: string,
 ): Promise<DoctorReport> {
   const checks: DoctorCheck[] = [];
-  try {
-    const integrity = database.prepare("PRAGMA integrity_check").get() as { integrity_check: string };
-    checks.push({ name: "database", status: integrity.integrity_check === "ok" ? "ok" : "error", detail: integrity.integrity_check });
-    const migration = database.prepare("SELECT MAX(version) AS version FROM schema_migrations").get() as { version: number | null };
-    checks.push({ name: "schema", status: migration.version === null ? "error" : "ok", detail: "migration " + String(migration.version ?? "missing") });
-  } catch (error) {
-    checks.push({ name: "database", status: "error", detail: error instanceof Error ? error.name : "Database check failed." });
+  if (!database) {
+    checks.push({ name: "database", status: "error", detail: databaseError ?? "Scopy database could not be opened read-only." });
+    checks.push({ name: "schema", status: "error", detail: "Schema check unavailable without an existing database." });
+  } else {
+    try {
+      const integrity = database.prepare("PRAGMA integrity_check").get() as { integrity_check: string };
+      checks.push({ name: "database", status: integrity.integrity_check === "ok" ? "ok" : "error", detail: integrity.integrity_check });
+      const migration = database.prepare("SELECT MAX(version) AS version FROM schema_migrations").get() as { version: number | null };
+      checks.push({ name: "schema", status: migration.version === null ? "error" : "ok", detail: "migration " + String(migration.version ?? "missing") });
+    } catch (error) {
+      checks.push({ name: "database", status: "error", detail: error instanceof Error ? error.name : "Database check failed." });
+    }
   }
   for (const [name, path] of [
     ["workspace", config.workspaceDir], ["backups", config.backupsDir],
@@ -45,7 +51,9 @@ export async function runDoctor(
       checks.push({ name, status: "error", detail: "Directory check failed." });
     }
   }
-  if (!environment.SCOPY_LOCAL_AI_MODEL?.trim()) {
+  if (!database && environment.SCOPY_LOCAL_AI_MODEL?.trim()) {
+    checks.push({ name: "local_ai", status: "warning", detail: "Local AI health check skipped because the Scopy database is unavailable." });
+  } else if (!environment.SCOPY_LOCAL_AI_MODEL?.trim()) {
     checks.push({ name: "local_ai", status: "not_configured", detail: "Run scripts\\connect-local-ai.ps1 in the current PowerShell session." });
   } else {
     try {

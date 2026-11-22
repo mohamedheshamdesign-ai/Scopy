@@ -4,7 +4,7 @@ import { runDoctor } from "./doctor/doctor.js";
 import { createLocalAiRouter } from "./ai/create-local-router.js";
 import { listLocalModels } from "./ai/local-openai-provider.js";
 import { loadConfig } from "./config.js";
-import { openDatabase } from "./db/database.js";
+import { openDatabase, openDatabaseReadOnly } from "./db/database.js";
 import { loadProjectContext } from "./project/project-context.js";
 import { MemoryRepository, type MemoryType } from "./memory/memory-repository.js";
 import { generateDraftPlan } from "./orchestrator/planner.js";
@@ -84,18 +84,29 @@ Commands:
 async function main(): Promise<void> {
   const [command, subcommand, ...args] = process.argv.slice(2);
   const config = loadConfig();
+  if (command === "doctor") {
+    let database: ReturnType<typeof openDatabaseReadOnly> | undefined;
+    let databaseError: string | undefined;
+    try {
+      database = openDatabaseReadOnly(config);
+    } catch (error) {
+      databaseError = error instanceof Error ? error.message : "Database could not be opened read-only.";
+    }
+    try {
+      const report = await runDoctor(config, database, process.env, databaseError);
+      console.log(JSON.stringify(report, null, 2));
+      if (!report.healthy) process.exitCode = 1;
+    } finally {
+      database?.close();
+    }
+    return;
+  }
   const database = openDatabase(config);
   let databaseOpen = true;
   const logger = new ScopyLogger(config.logsDir);
   logger.info("cli.command.started", { command: command ?? "unknown", subcommand: subcommand ?? null });
 
   try {
-    if (command === "doctor") {
-      const report = await runDoctor(config, database);
-      console.log(JSON.stringify(report, null, 2));
-      if (!report.healthy) process.exitCode = 1;
-      return;
-    }
 
     if (command === "health") {
       console.log(JSON.stringify({

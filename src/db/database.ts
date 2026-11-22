@@ -332,3 +332,11 @@ export function openDatabase(config: ScopyConfig): ScopyDatabase {
     throw error;
   }
 }
+
+export function openDatabaseReadOnly(config: ScopyConfig): ScopyDatabase {
+  return new Database(config.databasePath, {
+    readonly: true,
+    fileMustExist: true,
+    timeout: 5_000,
+  });
+}
