@@ -152,6 +152,45 @@ const migrations: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 5,
+    name: "orchestrator_plans_and_steps",
+    up(database) {
+      database.exec(`
+        CREATE TABLE orchestrator_plans (
+          id TEXT PRIMARY KEY,
+          goal TEXT NOT NULL CHECK(length(trim(goal)) BETWEEN 1 AND 2000),
+          summary TEXT NOT NULL CHECK(length(trim(summary)) BETWEEN 1 AND 1200),
+          status TEXT NOT NULL DEFAULT 'draft'
+            CHECK(status IN ('draft', 'approved', 'rejected')),
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          reviewed_at TEXT,
+          reviewed_by TEXT
+        ) STRICT;
+
+        CREATE INDEX idx_orchestrator_plans_status_created
+          ON orchestrator_plans(status, created_at DESC);
+
+        CREATE TABLE orchestrator_plan_steps (
+          id TEXT NOT NULL,
+          plan_id TEXT NOT NULL REFERENCES orchestrator_plans(id) ON DELETE CASCADE,
+          position INTEGER NOT NULL CHECK(position BETWEEN 1 AND 15),
+          title TEXT NOT NULL CHECK(length(trim(title)) BETWEEN 1 AND 160),
+          description TEXT NOT NULL CHECK(length(trim(description)) BETWEEN 1 AND 2000),
+          expected_output TEXT NOT NULL CHECK(length(trim(expected_output)) BETWEEN 1 AND 500),
+          risk TEXT NOT NULL CHECK(risk IN ('low', 'medium', 'high')),
+          dependencies_json TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(plan_id, id),
+          UNIQUE(plan_id, position)
+        ) STRICT;
+
+        CREATE INDEX idx_orchestrator_plan_steps_order
+          ON orchestrator_plan_steps(plan_id, position);
+      `);
+    },
+  },
 ];
 
 function applyMigrations(database: ScopyDatabase): void {
