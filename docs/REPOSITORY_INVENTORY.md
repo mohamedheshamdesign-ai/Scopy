@@ -28,6 +28,7 @@ src/ai/create-local-router.ts
 src/ai/local-openai-provider.ts
 src/ai/provider-router.ts
 src/ai/types.ts
+src/agents/agent-registry.ts
 src/audit/audit-repository.ts
 src/backup/backup-service.ts
 src/cli.ts
@@ -52,6 +53,7 @@ src/tasks/task-repository.ts
 src/tools/filesystem-tool.ts
 src/tools/tool-gateway.ts
 tests/ai-router.test.ts
+tests/agents.test.ts
 tests/audit.test.ts
  tests/backup.test.ts
 tests/chat-context.test.ts

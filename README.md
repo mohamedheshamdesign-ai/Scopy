@@ -44,6 +44,8 @@ npm run dev -- task update <TASK_ID> status in_progress
 npm run dev -- backup create
 npm run dev -- permission list
 npm run dev -- audit list
+npm run dev -- agent list
+npm run dev -- agent run brand-designer "Create a brand identity direction for a premium design studio"
 ```
 
 Projects can be created, listed, inspected, and archived. Tasks can be linked to active projects, filtered by project/status, and updated. Use `project show <PROJECT_ID>` to inspect a project and `project archive <PROJECT_ID>` to archive it without deleting linked tasks. Run `backup create` to create a SQLite snapshot under `E:\\Scopy\\backups`, then `backup verify <BACKUP_FILENAME>` to check its integrity. Backup restore is not available yet.
@@ -88,7 +90,7 @@ Do not commit directly to `main`.
 
 ## Current milestone
 
-`permission list` inspects stored policy rules, `memory archive <MEMORY_ID>` archives a memory record, and `audit list` inspects recent audit events (filter with `--entity`, `--id`, and `--limit`).
+`agent list` shows built-in specialists; `agent run <AGENT_ID> "prompt"` runs an advisory-only profile through the local model and relevant memory. Agents currently have no tools, browser, or execution permissions. `permission list` inspects stored policy rules, `memory archive <MEMORY_ID>` archives a memory record, and `audit list` inspects recent audit events (filter with `--entity`, `--id`, and `--limit`).
 
 The local foundation includes task and project persistence, versioned SQLite migrations, SQLite backup creation and integrity verification, a central permission policy engine, exact-action approval records, one-time approval consumption, audit events, local AI chat, typed planning, and guarded filesystem execution. GitHub Actions validates the project on Windows and Linux for changes to `dev`.
 

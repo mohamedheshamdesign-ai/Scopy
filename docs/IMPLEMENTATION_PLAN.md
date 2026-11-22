@@ -77,7 +77,7 @@ Implement only the contracts and infrastructure required for a first working ver
 4. [x] CLI wiring for explicit filesystem actions, permission-rule management, and approval review.
 5. [x] Bounded typed filesystem action proposals stored with reviewed plan steps and copied into runs; the CLI resolves saved actions without hand-written JSON.
 6. [ ] Expand action resolution only through separately validated schemas and registered tools; never execute model-generated free text as a tool call.
-7. Agent registry and capability declarations.
+7. [x] Built-in advisory-only agent registry and capability declarations; specialist profiles run through the local chat provider and cannot invoke tools.\n8. [ ] Multi-agent delegation, inter-agent messaging, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
 8. Delegation, dependencies, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
 9. Evaluation of plan quality and execution outcomes.
 10. Add Research and Developer agents first, then expand based on real workflows.

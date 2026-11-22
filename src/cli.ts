@@ -176,12 +176,14 @@ async function main(): Promise<void> {
         return value;
       };
       const rawLimit = readOption("--limit");
+      const entityType = readOption("--entity");
+      const entityId = readOption("--id");
       const limit = rawLimit === undefined ? 100 : Number(rawLimit);
       if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error("Audit limit must be between 1 and 500.");
       const audit = new AuditRepository(database);
       console.log(JSON.stringify(audit.list({
-        ...(readOption("--entity") ? { entityType: readOption("--entity") } : {}),
-        ...(readOption("--id") ? { entityId: readOption("--id") } : {}),
+        ...(entityType ? { entityType } : {}),
+        ...(entityId ? { entityId } : {}),
         limit,
       }), null, 2));
       return;
