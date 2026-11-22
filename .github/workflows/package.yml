@@ -1,0 +1,45 @@
+name: Package Scopy source
+
+on:
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        shell: pwsh
+        run: npm install --no-audit --no-fund
+      - name: Verify source
+        shell: pwsh
+        run: .\scripts\verify-scopy.ps1 -SkipInstall
+      - name: Build source archive
+        shell: pwsh
+        run: |
+          git archive --format=zip --prefix=Scopy/ HEAD -o Scopy-source.zip
+          if ($LASTEXITCODE -ne 0) {
+            throw "git archive failed."
+          }
+          $hash = (Get-FileHash -LiteralPath "Scopy-source.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -LiteralPath "Scopy-source.zip.sha256" -Value "$hash  Scopy-source.zip" -Encoding ascii
+          Write-Host "SHA256: $hash"
+      - name: Upload verified source package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scopy-windows-source
+          path: |
+            Scopy-source.zip
+            Scopy-source.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
