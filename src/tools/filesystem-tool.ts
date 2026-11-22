@@ -35,10 +35,11 @@ async function realPathOrNearestExisting(path: string): Promise<string> {
 }
 
 export class FilesystemTool {
-  private readonly rootPromise: Promise<string>;
+  private readonly workspaceRoot: string;
+  private rootPromise: Promise<string> | undefined;
 
   constructor(options: FilesystemToolOptions) {
-    this.rootPromise = this.initialize(options.workspaceRoot);
+    this.workspaceRoot = options.workspaceRoot;
   }
 
   register(gateway: ToolGateway): void {
@@ -49,13 +50,20 @@ export class FilesystemTool {
     );
   }
 
+  private getRoot(): Promise<string> {
+    // Initialize lazily: a denied or never-invoked tool must not start background
+    // filesystem work that can outlive its caller (for example, a test fixture).
+    this.rootPromise ??= this.initialize(this.workspaceRoot);
+    return this.rootPromise;
+  }
+
   private async initialize(root: string): Promise<string> {
     await mkdir(root, { recursive: true });
     return realpath(root);
   }
 
   private async resolveSafePath(input: string): Promise<{ root: string; path: string }> {
-    const root = await this.rootPromise;
+    const root = await this.getRoot();
     const requested = isAbsolute(input) ? resolve(input) : resolve(root, input);
     const resolved = await realPathOrNearestExisting(requested);
     if (!isWithinRoot(root, resolved)) {
