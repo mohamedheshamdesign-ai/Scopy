@@ -43,11 +43,13 @@ Implement only the contracts and infrastructure required for a first working ver
 4. [x] Audit events for policy changes, approval lifecycle, and guarded tool execution.
 5. [x] Tool gateway that routes registered tool calls through the execution guard.
 6. [x] Initial UTF-8 filesystem tool restricted to the configured workspace; path traversal and symlink escapes are checked.
-7. Runtime with timeout, cancellation, output limits, and checkpoints.
+7. [x] Runtime engine with cooperative timeout/cancellation, serialized output-size limits, persisted execution records, checkpoints, and caller-driven resume.
 8. Harden filesystem isolation against local race conditions; add OS-level isolation where appropriate.
 9. Authenticated reviewer identity and a local approval interface.
 
-**Acceptance:** policy, approval, gateway, and filesystem tests pass; safe read/write task succeeds inside the workspace; traversal and symlink escapes are denied; approval-required actions cannot execute before approval; tool adapters are only exposed through the gateway.
+**Runtime limitations:** cancellation requires tools to observe the abort signal; non-cooperative handlers may continue after the runtime stops awaiting them. Output size is checked after result serialization, not as a streaming or memory-allocation cap. Hard process isolation and streaming output enforcement are not implemented.
+
+**Acceptance:** policy, approval, gateway, filesystem, and runtime tests pass; safe read/write succeeds inside the workspace; traversal and symlink escapes are denied; approval-required actions cannot execute before approval; timeouts and cancellation are recorded; checkpoints can be loaded by a matching resumed run.
 
 ## Phase 3 — AI routing and memory
 
