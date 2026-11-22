@@ -83,9 +83,9 @@ Build small, testable vertical slices. Every consequential action must pass the 
 
 1. [x] Isolated Chromium/Edge launch, URL navigation, and bounded visible-text extraction through a dedicated profile. Interactive browser actions remain open.
 2. [ ] Domain, download, and session controls.
-3. [ ] Windows computer adapter behind the tool gateway.
-4. [ ] Per-action risk checks and explicit approvals.
-5. [ ] Recovery and screenshot/evidence capture.
+3. [x] Initial Windows UI Automation adapter behind the tool gateway: inspect controls, invoke a uniquely matched control, and set a value.
+4. [x] Exact one-time approval for each computer action.
+5. [ ] Screenshot/evidence capture, coordinate/keyboard input, broader application compatibility, and robust recovery.
 
 **Acceptance:** browser research works in isolation; consequential actions remain approval-gated; desktop actions are logged and recoverable.
 
