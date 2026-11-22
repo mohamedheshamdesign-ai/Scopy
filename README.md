@@ -78,7 +78,7 @@ Do not commit directly to `main`.
 
 ## Current milestone
 
-The local foundation now includes task persistence, versioned SQLite migrations, a central permission policy engine, exact-action approval records, one-time approval consumption, and audit events.
+The local foundation includes task persistence, versioned SQLite migrations, a central permission policy engine, exact-action approval records, one-time approval consumption, and audit events.
 
 The permission engine uses **default deny**. Rules can be scoped by actor, tool, action, and target. Target patterns support an exact target, `*`, or a trailing wildcard prefix such as `E:\\Scopy\\workspace\\*`. Filesystem targets are normalized with Windows path rules and compared case-insensitively. A more specific rule takes precedence; ties resolve as deny, then approval-required, then allow.
 
@@ -86,6 +86,18 @@ The filesystem adapter resolves existing paths (including symlinks) and verifies
 
 Consequential actions configured as `approval_required` must have an approved request whose SHA-256 action fingerprint matches the exact actor, tool, action, target, and payload. The approval is consumed once before the handler runs. Policy decisions are re-evaluated at execution time.
 
-The initial Tool Gateway is now in place. Registered tools can only be invoked through the gateway, which routes execution through the central guard. The first adapter is a UTF-8 filesystem tool scoped to `E:\\Scopy\\workspace` by default (the `workspace` directory under the configured Scopy home). It checks resolved paths and symlink destinations before reads and writes. The filesystem adapter is a first security boundary, not an OS-level sandbox: a future hardened adapter must address local time-of-check/time-of-use races and use OS-level isolation where appropriate.
+The Tool Gateway routes registered tools through the central execution guard. The first adapter is a UTF-8 filesystem tool scoped to `E:\\Scopy\\workspace` by default. It checks resolved paths and symlink destinations before reads and writes. This is a first security boundary, not an OS-level sandbox: local time-of-check/time-of-use races and OS-level isolation remain future hardening work.
 
-The current gateway is an internal application API; no agent or external integration is connected yet. Reviewer identity is currently supplied by the trusted local application layer; authenticated user identity is a later integration task.
+### Runtime engine
+
+The Runtime Engine wraps gateway calls and stores execution records and checkpoints in SQLite (migration 3). It provides:
+
+- Per-run timeouts (1ms–10 minutes) and cancellation through an `AbortSignal`.
+- A structured execution status and audit trail for started, succeeded, failed, cancelled, and timed-out runs.
+- A serialized output size limit (1 byte–1 MiB).
+- Explicit checkpoints, plus caller-driven resume that supplies the latest checkpoint to a new run.
+- Resume-source validation: actor, tool, action, and target must match the new request.
+
+Tools should observe `context.signal` and periodically check it during long operations. Cancellation and timeout are cooperative: a handler that ignores the signal may continue running after the Runtime Engine has stopped awaiting it. The output limit is checked after a handler returns and its result is serialized; it limits accepted/persisted output, not peak memory allocated inside a tool. Streaming output enforcement and hard process isolation are future work.
+
+The gateway is an internal application API; no agent or external integration is connected yet. Reviewer identity is currently supplied by the trusted local application layer; authenticated user identity and a local approval interface remain future work.
