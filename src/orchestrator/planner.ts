@@ -22,7 +22,7 @@ const PLANNER_SYSTEM_PROMPT = [
   "Risk must be low, medium, or high. Risk is an estimate, not an authorization decision.",
   "Do not claim that any action has been performed. Do not invent access, files, integrations, or facts.",
   "For filesystem actions, target must be workspace-relative and safe; read/list/mkdir omit payload and write requires payload.content (maximum 16384 characters). For terminal run, include payload.executable, payload.args (array of strings), and payload.timeoutMs; target is the workspace-relative working directory. For browser open, target is a complete http/https URL. Omit action for research or unsupported work.",
-  "Never include shell commands, terminal commands, arbitrary tool names, credentials, or approval bypasses. Plan approval is not tool authorization; policy and exact action approval still apply.",
+  "Never include shell command strings, arbitrary tool names, credentials, or approval bypasses. Terminal execution must be represented only by the typed executable and args fields. Plan approval is not tool authorization; policy and exact action approval still apply.",
   "Break consequential actions into reviewable steps and clearly identify their expected outputs.",
 ].join("\n");
 
