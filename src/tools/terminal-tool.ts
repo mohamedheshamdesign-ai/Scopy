@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { realpath, stat } from "node:fs/promises";
+import { mkdir, realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { ActionRequest } from "../permissions/types.js";
 import { ToolGateway, type ToolExecutionContext } from "./tool-gateway.js";
@@ -60,6 +60,7 @@ export class TerminalTool {
   private async handle(request: ActionRequest, context?: ToolExecutionContext): Promise<unknown> {
     if (request.action !== "run") throw new Error("Terminal supports only the run action.");
     const payload = validatePayload(request.payload);
+    await mkdir(this.workspaceRoot, { recursive: true });
     const root = await realpath(this.workspaceRoot);
     const requested = isAbsolute(request.target) ? resolve(request.target) : resolve(root, request.target);
     const cwd = await realpath(requested);
