@@ -50,7 +50,7 @@ Commands:
   npm run dev -- run step start <run-id> <step-id>
   npm run dev -- run step complete <run-id> <step-id> ["result"]
   npm run dev -- run step fail <run-id> <step-id> "reason"
-  npm run dev -- run step execute <run-id> <step-id> filesystem <read|write> <workspace-relative-path> [payload-json] [approval-id]
+  npm run dev -- run step execute <run-id> <step-id> [approval-id]  # execute the saved plan action
   npm run dev -- run resume <run-id>
   npm run dev -- run cancel <run-id>
 `);
@@ -311,6 +311,28 @@ async function main(): Promise<void> {
         }
         let run;
         if (operation === "execute") {
+          const existingRun = runs.getById(runId);
+          if (!existingRun) throw new Error(`Plan run not found: ${runId}`);
+          if (details.length <= 1) {
+            const permissions = new PermissionRepository(database);
+            const policy = new PolicyEngine(permissions);
+            const approvals = new ApprovalService(database, policy);
+            const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
+            new FilesystemTool({ workspaceRoot: join(config.homeDir, "workspace") }).register(gateway);
+            const runtime = new RuntimeEngine(database, gateway);
+            const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
+            try {
+              const result = await executor.executePlanned(runId, stepId, {}, details[0]);
+              console.log(JSON.stringify(result, null, 2));
+            } catch (error) {
+              if (error instanceof Error && error.name === "PlanStepApprovalRequiredError" && "approval" in error) {
+                console.log(JSON.stringify({ status: "approval_required", approval: (error as Error & { approval: unknown }).approval }, null, 2));
+                return;
+              }
+              throw error;
+            }
+            return;
+          }
           const [tool, action, target, ...executionArgs] = details;
           const payloadJson = executionArgs[0]?.trim().startsWith("{") ? executionArgs[0] : undefined;
           const approvalId = payloadJson ? executionArgs[1] : executionArgs[0];
@@ -323,8 +345,6 @@ async function main(): Promise<void> {
           if (action !== "read" && action !== "write") {
             throw new Error("Filesystem action must be read or write.");
           }
-          const existingRun = runs.getById(runId);
-          if (!existingRun) throw new Error(`Plan run not found: ${runId}`);
           let payload: Record<string, unknown> = {};
           if (payloadJson) {
             const parsed: unknown = JSON.parse(payloadJson);

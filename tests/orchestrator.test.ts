@@ -101,3 +101,42 @@ test("rejected plans cannot later be approved", async () => {
     await rm(home, { recursive: true, force: true });
   }
 });
+
+
+test("typed filesystem actions are validated and persist with the plan", async () => {
+  const home = await mkdtemp(join(tmpdir(), "scopy-plan-action-test-"));
+  const database = openDatabase(loadConfig(home));
+  try {
+    const repository = new PlanRepository(database);
+    const draft = {
+      summary: "Create one safe workspace note.",
+      steps: [{
+        id: "step-1", title: "Write the note",
+        description: "Create the requested note in the workspace.",
+        expectedOutput: "The note exists in the workspace.",
+        risk: "low", dependsOn: [],
+        action: {
+          tool: "filesystem", action: "write", target: "notes/execution-check.txt",
+          payload: { content: "Scopy test" },
+        },
+      }],
+    } as const;
+    const created = repository.create("Create a workspace note", draft);
+    assert.deepEqual(created.steps[0]?.action, draft.steps[0]?.action);
+    assert.throws(() => validateGeneratedPlan({
+      ...draft,
+      steps: [{ ...draft.steps[0], action: { ...draft.steps[0].action, target: "../outside.txt" } }],
+    }), /workspace-relative/);
+    assert.throws(() => validateGeneratedPlan({
+      ...draft,
+      steps: [{ ...draft.steps[0], action: { ...draft.steps[0].action, tool: "terminal" } }],
+    }), /unsupported tool/);
+    assert.throws(() => validateGeneratedPlan({
+      ...draft,
+      steps: [{ ...draft.steps[0], action: { ...draft.steps[0].action, target: "C:/outside.txt" } }],
+    }), /workspace-relative/);
+  } finally {
+    database.close();
+    await rm(home, { recursive: true, force: true });
+  }
+});

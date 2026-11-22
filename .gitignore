@@ -31,3 +31,11 @@ venv/
 __pycache__/
 *.pyc
 .python-version
+
+# Local model cache, runtime binaries, temp files, and user workspace
+cache/
+runtime/
+temp/
+logs/
+workspace/*
+!workspace/.gitkeep

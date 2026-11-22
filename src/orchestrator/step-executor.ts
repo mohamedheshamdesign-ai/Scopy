@@ -5,6 +5,7 @@ import type { PolicyEngine } from "../permissions/policy-engine.js";
 import type { RuntimeOptions, RuntimeResult } from "../runtime/runtime-engine.js";
 import { RuntimeEngine } from "../runtime/runtime-engine.js";
 import { PlanRunRepository, type PlanRun } from "./run-repository.js";
+import { resolvePlanAction } from "./action-resolver.js";
 
 export class PlanStepApprovalRequiredError extends ApprovalRequiredError {
   constructor(readonly approval: ApprovalRequest) {
@@ -25,6 +26,15 @@ export class PlanStepExecutor {
     private readonly approvals: ApprovalService,
     private readonly runtime: RuntimeEngine,
   ) {}
+
+  async executePlanned<T = unknown>(runId: string, stepId: string, options: RuntimeOptions = {}, approvalId?: string): Promise<PlanStepExecutionResult<T>> {
+    const run = this.runs.getById(runId);
+    if (!run) throw new Error(`Plan run not found: ${runId}`);
+    const step = run.steps.find((item) => item.id === stepId);
+    if (!step) throw new Error(`Step not found in run: ${stepId}`);
+    if (!step.action) throw new Error(`Plan step ${stepId} has no supported typed action. It must be handled manually.`);
+    return this.execute<T>(runId, stepId, resolvePlanAction(step.action, run.startedBy), options, approvalId);
+  }
 
   async execute<T = unknown>(
     runId: string,
@@ -65,7 +75,7 @@ export class PlanStepExecutor {
       throw new Error("An approval ID was supplied for an action that does not require approval.");
     }
 
-    this.runs.startStep(runId, stepId);
+    this.runs.startStep(runId, stepId, true);
     let execution: RuntimeResult<T>;
     try {
       execution = await this.runtime.execute<T>(request, options, approvalId);
@@ -83,7 +93,7 @@ export class PlanStepExecutor {
       ? `${serializedOutput.slice(0, 3_900)}…[truncated]`
       : serializedOutput;
     return {
-      run: this.runs.completeStep(runId, stepId, result),
+      run: this.runs.completeStep(runId, stepId, result, true),
       execution,
     };
   }

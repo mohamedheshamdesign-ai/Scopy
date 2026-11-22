@@ -60,7 +60,7 @@ By default, Scopy uses the repository directory as its home and stores runtime d
 E:\Scopy\data\scopy.sqlite
 ```
 
-Set `SCOPY_HOME` to change the Scopy home directory. Database files, WAL files, logs, secrets, and backups must never be committed.
+Set `SCOPY_HOME` to change the Scopy home directory. Database files, WAL files, logs, secrets, backups, local model caches, runtime binaries, temporary files, and workspace contents must never be committed.
 
 ## Repository workflow
 
@@ -79,13 +79,15 @@ Do not commit directly to `main`.
 
 ## Current milestone
 
-The local foundation includes task persistence, versioned SQLite migrations, a central permission policy engine, exact-action approval records, one-time approval consumption, and audit events.
+The local foundation includes task persistence, versioned SQLite migrations, a central permission policy engine, exact-action approval records, one-time approval consumption, audit events, local AI chat, typed planning, and guarded filesystem execution. GitHub Actions validates the project on Windows and Linux for changes to `dev`.
 
 The permission engine uses **default deny**. Rules can be scoped by actor, tool, action, and target. Target patterns support an exact target, `*`, or a trailing wildcard prefix such as `E:\\Scopy\\workspace\\*`. Filesystem targets are normalized with Windows path rules and compared case-insensitively. A more specific rule takes precedence; ties resolve as deny, then approval-required, then allow.
 
 The filesystem adapter resolves existing paths (including symlinks) and verifies that the resolved destination remains inside the configured workspace before reads and writes. String-pattern checks alone are not a filesystem sandbox.
 
 Consequential actions configured as `approval_required` must have an approved request whose SHA-256 action fingerprint matches the exact actor, tool, action, target, and payload. The approval is consumed once before the handler runs. Policy decisions are re-evaluated at execution time.
+
+The planner can attach validated filesystem read/write actions to individual plan steps. These typed actions are stored with the reviewed plan and copied into the run. Execute a saved action with `npm run dev -- run step execute <RUN_ID> <STEP_ID>`; when policy requires approval, inspect `npm run dev -- approval list`, approve the exact request, and repeat the execute command with the approval ID. Plan approval does not authorize tool execution. Unsupported steps remain manual; free-form model text is never executed.
 
 The Tool Gateway routes registered tools through the central execution guard. The first adapter is a UTF-8 filesystem tool scoped to `E:\\Scopy\\workspace` by default. It checks resolved paths and symlink destinations before reads and writes. This is a first security boundary, not an OS-level sandbox: local time-of-check/time-of-use races and OS-level isolation remain future hardening work.
 

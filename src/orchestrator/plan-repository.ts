@@ -26,6 +26,7 @@ interface StepRow {
   expected_output: string;
   risk: "low" | "medium" | "high";
   dependencies_json: string;
+  action_json: string | null;
 }
 
 function mapPlan(row: PlanRow, steps: readonly StepRow[]): OrchestratorPlan {
@@ -45,6 +46,7 @@ function mapPlan(row: PlanRow, steps: readonly StepRow[]): OrchestratorPlan {
       expectedOutput: step.expected_output,
       risk: step.risk,
       dependsOn: JSON.parse(step.dependencies_json) as string[],
+      ...(step.action_json ? { action: JSON.parse(step.action_json) as NonNullable<PlanStepDraft["action"]> } : {}),
     })),
   };
 }
@@ -76,13 +78,13 @@ export class PlanRepository {
       const insertStep = this.database.prepare(`
         INSERT INTO orchestrator_plan_steps (
           id, plan_id, position, title, description, expected_output, risk,
-          dependencies_json, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          dependencies_json, action_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       validatedDraft.steps.forEach((step, index) => {
         insertStep.run(
           step.id, id, index + 1, step.title, step.description,
-          step.expectedOutput, step.risk, JSON.stringify(step.dependsOn), now,
+          step.expectedOutput, step.risk, JSON.stringify(step.dependsOn), step.action ? JSON.stringify(step.action) : null, now,
         );
       });
       this.audit(id, "orchestrator.plan.created", {
@@ -101,7 +103,7 @@ export class PlanRepository {
     ).get(id) as PlanRow | undefined;
     if (!row) return null;
     const steps = this.database.prepare(`
-      SELECT id, title, description, expected_output, risk, dependencies_json
+      SELECT id, title, description, expected_output, risk, dependencies_json, action_json
       FROM orchestrator_plan_steps WHERE plan_id = ? ORDER BY position ASC
     `).all(id) as StepRow[];
     return mapPlan(row, steps);
@@ -116,7 +118,7 @@ export class PlanRepository {
     `).all(limit) as PlanRow[];
     return rows.map((row) => {
       const steps = this.database.prepare(`
-        SELECT id, title, description, expected_output, risk, dependencies_json
+        SELECT id, title, description, expected_output, risk, dependencies_json, action_json
         FROM orchestrator_plan_steps WHERE plan_id = ? ORDER BY position ASC
       `).all(row.id) as StepRow[];
       return mapPlan(row, steps);

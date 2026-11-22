@@ -157,3 +157,45 @@ test("failed tool execution records a failed step and run", async () => {
     assert.equal(failed.steps[0]?.status, "failed");
   });
 });
+
+
+test("executePlanned resolves the saved action and still requires exact tool approval", async () => {
+  await withExecutor(async ({ executor, plans, runs, rules, approvals, gateway }) => {
+    const plan = plans.create("Create a test file", {
+      summary: "Write a single file in the workspace.",
+      steps: [{
+        id: "step-1", title: "Write test file",
+        description: "Create the file with the supplied test content.",
+        expectedOutput: "The file is written.",
+        risk: "low", dependsOn: [],
+        action: {
+          tool: "filesystem", action: "write", target: "execution-check.txt",
+          payload: { content: "Scopy guarded execution test" },
+        },
+      }],
+    });
+    plans.review(plan.id, "approved", "user:local");
+    const runId = runs.start(plan.id, "user:local").id;
+    rules.setRule({
+      actorId: "user:local", tool: "filesystem", action: "write",
+      targetPattern: "*", effect: "approval_required",
+    });
+    gateway.register("filesystem", "Test filesystem adapter", (request) => ({
+      target: request.target,
+      content: request.payload?.content,
+    }));
+
+    let approvalId = "";
+    await assert.rejects(executor.executePlanned(runId, "step-1"), (error: unknown) => {
+      assert.ok(error instanceof PlanStepApprovalRequiredError);
+      approvalId = error.approval.id;
+      return true;
+    });
+    assert.equal(runs.getById(runId)?.steps[0]?.status, "ready");
+    approvals.approve(approvalId, "user:local");
+    const result = await executor.executePlanned(runId, "step-1", {}, approvalId);
+    assert.equal(result.run.status, "succeeded");
+    assert.equal((result.execution.output as { target: string }).target, "execution-check.txt");
+    assert.equal(approvals.getById(approvalId)?.status, "consumed");
+  });
+});

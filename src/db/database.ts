@@ -249,6 +249,16 @@ const migrations: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 7,
+    name: "typed_plan_step_actions",
+    up(database) {
+      database.exec(`
+        ALTER TABLE orchestrator_plan_steps ADD COLUMN action_json TEXT;
+        ALTER TABLE orchestrator_run_steps ADD COLUMN action_json TEXT;
+      `);
+    },
+  },
 ];
 
 function applyMigrations(database: ScopyDatabase): void {

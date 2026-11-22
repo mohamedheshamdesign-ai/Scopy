@@ -16,7 +16,7 @@ Build a small, testable vertical slice first. Each phase must have acceptance cr
 - [x] Confirm clean working tree and upstream tracking.
 - [ ] Add architecture and implementation documentation.
 - [ ] Add Node/TypeScript project configuration and repeatable scripts.
-- [ ] Add automated test runner and CI validation.
+- [x] Add automated test runner and CI validation on Windows and Linux via GitHub Actions.
 - [ ] Confirm the actual Node.js version and package manager on the target PC.
 
 **Acceptance:** clean install, typecheck, lint, and tests run locally and in CI; no local data or secrets are tracked.
@@ -74,14 +74,15 @@ Implement only the contracts and infrastructure required for a first working ver
    - Initial slice also supports local-model draft generation, SQLite persistence, explicit approve/reject review, and audit events. Plan approval is not execution authorization.
 2. [x] Orchestrator run lifecycle — approved-plan runs, persisted step states, dependency gating, serial transitions, explicit retry after recorded failures, cancellation, audit events, and inspectable checkpoints.
 3. [x] Guarded plan-step execution service — typed action requests pass policy preflight, exact one-time approval checks, actor binding, RuntimeEngine, ToolGateway, and ExecutionGuard.
-4. [x] CLI wiring for explicit filesystem actions, permission-rule management, and approval review. The CLI does not translate model-generated prose into tool calls.
-5. Trusted action resolver that maps reviewed plan intent into a bounded typed action proposal; never execute model-generated free text as a tool call.
-6. Agent registry and capability declarations.
-7. Delegation, dependencies, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
-8. Evaluation of plan quality and execution outcomes.
-9. Add Research and Developer agents first, then expand based on real workflows.
+4. [x] CLI wiring for explicit filesystem actions, permission-rule management, and approval review.
+5. [x] Bounded typed filesystem action proposals stored with reviewed plan steps and copied into runs; the CLI resolves saved actions without hand-written JSON.
+6. [ ] Expand action resolution only through separately validated schemas and registered tools; never execute model-generated free text as a tool call.
+7. Agent registry and capability declarations.
+8. Delegation, dependencies, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
+9. Evaluation of plan quality and execution outcomes.
+10. Add Research and Developer agents first, then expand based on real workflows.
 
-**Acceptance:** one multi-step task is planned and reviewed; a run is started; dependency-ordered steps can be advanced manually or executed through the guarded service; default-deny, exact approvals, actor binding, tool failure recording, checkpoints, and audit trails are tested. The CLI currently registers only the filesystem tool and exposes explicit actions. Automatic model action resolution and interrupted-side-effect recovery are not implemented. A timeout or failed result does not prove that a non-cooperative tool had no side effect; retries require review.
+**Acceptance:** one multi-step task is planned and reviewed; a run is started; dependency-ordered steps can be advanced manually or executed through the guarded service; default-deny, exact approvals, actor binding, tool failure recording, checkpoints, and audit trails are tested. The CLI currently registers only the filesystem tool. The planner can propose validated filesystem read/write actions; unsupported work remains manual. Automatic interrupted-side-effect recovery is not implemented. A timeout or failed result does not prove that a non-cooperative tool had no side effect; retries require review.
 
 ## Phase 5 — Browser and computer control
 

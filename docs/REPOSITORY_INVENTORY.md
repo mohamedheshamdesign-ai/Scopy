@@ -10,6 +10,7 @@
 .gitignore
 .nvmrc
 README.md
+.github/workflows/ci.yml
 backups/.gitkeep
 data/.gitkeep
 docs/ARCHITECTURE.md
@@ -29,6 +30,7 @@ src/cli.ts
 src/config.ts
 src/db/database.ts
 src/memory/memory-repository.ts
+src/orchestrator/action-resolver.ts
 src/orchestrator/plan-repository.ts
 src/orchestrator/plan.ts
 src/orchestrator/planner.ts

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
 import type { ScopyDatabase } from "../db/database.js";
-import type { PlanRisk, PlanStatus } from "./plan.js";
+import type { PlanAction, PlanRisk, PlanStatus } from "./plan.js";
 
 export type PlanRunStatus = "running" | "succeeded" | "failed" | "cancelled";
 export type PlanRunStepStatus = "pending" | "ready" | "running" | "succeeded" | "failed" | "skipped";
@@ -14,6 +14,7 @@ export interface PlanRunStep {
   readonly expectedOutput: string;
   readonly risk: PlanRisk;
   readonly dependsOn: readonly string[];
+  readonly action?: PlanAction;
   readonly status: PlanRunStepStatus;
   readonly attemptCount: number;
   readonly result: string | null;
@@ -53,6 +54,7 @@ interface RunStepRow {
   expected_output: string;
   risk: PlanRisk;
   dependencies_json: string;
+  action_json: string | null;
   status: PlanRunStepStatus;
   attempt_count: number;
   result_text: string | null;
@@ -79,6 +81,7 @@ function mapRun(row: RunRow, steps: readonly RunStepRow[]): PlanRun {
       expectedOutput: step.expected_output,
       risk: step.risk,
       dependsOn: JSON.parse(step.dependencies_json) as string[],
+      ...(step.action_json ? { action: JSON.parse(step.action_json) as PlanAction } : {}),
       status: step.status,
       attemptCount: step.attempt_count,
       result: step.result_text,
@@ -111,11 +114,11 @@ export class PlanRunRepository {
     }
 
     const sourceSteps = this.database.prepare(`
-      SELECT id, position, title, description, expected_output, risk, dependencies_json
+      SELECT id, position, title, description, expected_output, risk, dependencies_json, action_json
       FROM orchestrator_plan_steps WHERE plan_id = ? ORDER BY position ASC
     `).all(planId) as Array<{
       id: string; position: number; title: string; description: string;
-      expected_output: string; risk: PlanRisk; dependencies_json: string;
+      expected_output: string; risk: PlanRisk; dependencies_json: string; action_json: string | null;
     }>;
     if (sourceSteps.length === 0) throw new Error("Cannot start a plan without steps.");
 
@@ -130,14 +133,14 @@ export class PlanRunRepository {
       const insertStep = this.database.prepare(`
         INSERT INTO orchestrator_run_steps (
           run_id, step_id, position, title, description, expected_output, risk,
-          dependencies_json, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          dependencies_json, action_json, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       for (const step of sourceSteps) {
         const dependencies = JSON.parse(step.dependencies_json) as string[];
         insertStep.run(
           id, step.id, step.position, step.title, step.description,
-          step.expected_output, step.risk, step.dependencies_json,
+          step.expected_output, step.risk, step.dependencies_json, step.action_json,
           dependencies.length === 0 ? "ready" : "pending",
         );
       }
@@ -174,7 +177,7 @@ export class PlanRunRepository {
     });
   }
 
-  startStep(runId: string, stepId: string): PlanRun {
+  startStep(runId: string, stepId: string, guardedAction = false): PlanRun {
     const now = new Date().toISOString();
     const transition = this.database.transaction(() => {
       const run = this.requireRun(runId);
@@ -182,6 +185,7 @@ export class PlanRunRepository {
       const step = this.getStep(runId, stepId);
       if (!step) throw new Error(`Step not found in run: ${stepId}`);
       if (step.status !== "ready") throw new Error("Only a ready step can be started.");
+      if (step.action_json && !guardedAction) throw new Error("This step contains a typed action and must be started through guarded execution.");
       const active = this.database.prepare(
         "SELECT step_id FROM orchestrator_run_steps WHERE run_id = ? AND status = 'running'",
       ).get(runId);
@@ -207,7 +211,7 @@ export class PlanRunRepository {
     return this.getById(runId)!;
   }
 
-  completeStep(runId: string, stepId: string, result = ""): PlanRun {
+  completeStep(runId: string, stepId: string, result = "", guardedAction = false): PlanRun {
     const normalized = result.trim();
     if (normalized.length > 4_000) throw new Error("Step result cannot exceed 4000 characters.");
     const now = new Date().toISOString();
@@ -217,6 +221,7 @@ export class PlanRunRepository {
       const step = this.getStep(runId, stepId);
       if (!step) throw new Error(`Step not found in run: ${stepId}`);
       if (step.status !== "running") throw new Error("Only a running step can be completed.");
+      if (step.action_json && !guardedAction) throw new Error("This typed-action step can only be completed by the guarded executor after a successful tool result.");
       this.database.prepare(`
         UPDATE orchestrator_run_steps
         SET status = 'succeeded', result_text = ?, error_text = NULL, finished_at = ?

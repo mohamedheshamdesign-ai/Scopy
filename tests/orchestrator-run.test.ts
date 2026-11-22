@@ -135,3 +135,30 @@ test("run rejects unknown steps, invalid transitions, and oversized checkpoint r
     assert.throws(() => runs.completeStep(run.id, "step-1", "x".repeat(4_001)), /4000/);
   });
 });
+
+
+test("typed action steps are copied into runs and cannot be manually completed", async () => {
+  await withRunRepositories(async (plans, runs) => {
+    const plan = plans.create("Execute a guarded workspace write", {
+      summary: "Write a file through the guarded tool path.",
+      steps: [{
+        id: "step-1", title: "Write the file",
+        description: "Create a workspace file.",
+        expectedOutput: "The file is written.",
+        risk: "low", dependsOn: [],
+        action: {
+          tool: "filesystem", action: "write", target: "execution-check.txt",
+          payload: { content: "guarded" },
+        },
+      }],
+    });
+    plans.review(plan.id, "approved", "user:local");
+    const run = runs.start(plan.id, "user:local");
+    assert.deepEqual(run.steps[0]?.action, plan.steps[0]?.action);
+    assert.throws(() => runs.startStep(run.id, "step-1"), /guarded execution/);
+    runs.startStep(run.id, "step-1", true);
+    assert.throws(() => runs.completeStep(run.id, "step-1", "forged success"), /guarded executor/);
+    const completed = runs.completeStep(run.id, "step-1", "verified tool result", true);
+    assert.equal(completed.status, "succeeded");
+  });
+});
