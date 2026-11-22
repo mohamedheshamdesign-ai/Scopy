@@ -79,6 +79,12 @@ export class MemoryRepository {
         confidence, status, created_at, updated_at, expires_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
     `).run(id, input.type, scope, content, sourceType, sourceRef, confidence, now, now, input.expiresAt ?? null);
+    this.database.prepare(`
+      INSERT INTO audit_events (id, event_type, entity_type, entity_id, payload_json, created_at)
+      VALUES (?, 'memory.created', 'memory_record', ?, ?, ?)
+    `).run(randomUUID(), id, JSON.stringify({
+      type: input.type, scope, sourceType, sourceRef, confidence,
+    }), now);
     return this.getById(id)!;
   }
 
@@ -122,9 +128,16 @@ export class MemoryRepository {
   }
 
   archive(id: string): boolean {
+    const now = new Date().toISOString();
     const result = this.database.prepare(
       "UPDATE memory_records SET status = 'archived', updated_at = ? WHERE id = ? AND status = 'active'",
-    ).run(new Date().toISOString(), id);
+    ).run(now, id);
+    if (result.changes === 1) {
+      this.database.prepare(`
+        INSERT INTO audit_events (id, event_type, entity_type, entity_id, payload_json, created_at)
+        VALUES (?, 'memory.archived', 'memory_record', ?, '{}', ?)
+      `).run(randomUUID(), id, now);
+    }
     return result.changes === 1;
   }
 
