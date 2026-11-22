@@ -84,7 +84,7 @@ test("provider router blocks cloud egress unless explicitly opted in and audits 
     );
     assert.equal(allowed.text, "cloud result");
     const events = database.prepare(
-      "SELECT event_type FROM audit_events WHERE entity_type = 'ai_provider' ORDER BY created_at",
+      "SELECT event_type FROM audit_events WHERE entity_type = 'ai_provider' ORDER BY rowid",
     ).all() as Array<{ event_type: string }>;
     assert.deepEqual(events.map((event) => event.event_type), [
       "ai.egress.blocked",
