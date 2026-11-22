@@ -206,7 +206,7 @@ export class DashboardServer {
       return;
     }
 
-    if (url.pathname === "/api/session" && method === "POST") {
+    if (url.pathname === "/api/session" && request.method === "POST") {
       const authorization = request.headers.authorization ?? "";
       if (!authorization.startsWith("Bearer ") || !safeEqual(authorization.slice(7), this.token)) {
         json(response, 401, { error: "Dashboard token is invalid." });
