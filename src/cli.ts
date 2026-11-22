@@ -108,17 +108,19 @@ async function main(): Promise<void> {
           process.exitCode = 1;
           return;
         }
-        let architectureDocument: string | undefined;
-        try {
-          architectureDocument = await readFile(
-            resolve(process.cwd(), "docs/ARCHITECTURE.md"),
-            "utf8",
-          );
-        } catch {
-          // Scopy remains usable when invoked outside a full source checkout.
+        const projectDocuments: string[] = [];
+        for (const documentName of ["ARCHITECTURE.md", "IMPLEMENTATION_PLAN.md"]) {
+          try {
+            projectDocuments.push(await readFile(
+              resolve(process.cwd(), "docs", documentName),
+              "utf8",
+            ));
+          } catch {
+            // Scopy remains usable when invoked outside a full source checkout.
+          }
         }
         const result = await router.generate(provider.id, {
-          messages: buildCliChatMessages(prompt, architectureDocument),
+          messages: buildCliChatMessages(prompt, projectDocuments.join("\n\n")),
         }, {
           actorId: "user:local",
           purpose: "local CLI chat",
