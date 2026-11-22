@@ -39,6 +39,22 @@ switch ([string]$request.action) {
     }
     @{ windowTitle = $window.Current.Name; controls = $items; truncated = ($elements.Count -gt $limit) } | ConvertTo-Json -Depth 6 -Compress
   }
+  'screenshot' {
+    Add-Type -AssemblyName System.Drawing
+    $bounds = $window.Current.BoundingRectangle
+    $width = [int][Math]::Ceiling($bounds.Width)
+    $height = [int][Math]::Ceiling($bounds.Height)
+    if ($width -lt 1 -or $height -lt 1 -or $width -gt 1920 -or $height -gt 1080) { throw "Window bounds must be between 1x1 and 1920x1080 for screenshot capture." }
+    $bitmap = New-Object System.Drawing.Bitmap($width, $height)
+    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    $graphics.CopyFromScreen([int]$bounds.X, [int]$bounds.Y, 0, 0, $bitmap.Size)
+    $stream = New-Object System.IO.MemoryStream
+    $bitmap.Save($stream, [System.Drawing.Imaging.ImageFormat]::Jpeg)
+    $data = [Convert]::ToBase64String($stream.ToArray())
+    $graphics.Dispose(); $bitmap.Dispose(); $stream.Dispose()
+    if ($data.Length -gt 1800000) { throw "Screenshot exceeds the 1.35 MiB limit." }
+    @{ mimeType = "image/jpeg"; data = $data; windowTitle = $window.Current.Name; width = $width; height = $height } | ConvertTo-Json -Depth 4 -Compress
+  }
   'invoke' {
     if ($request.automationId) { $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, [string]$request.automationId) }
     else { $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, [string]$request.name) }
@@ -67,8 +83,12 @@ switch ([string]$request.action) {
 `;
 
 function validate(request: ActionRequest): ComputerPayload {
-  if (!["snapshot", "invoke", "set_value"].includes(request.action)) throw new Error("Unsupported Windows computer action.");
+  if (!["snapshot", "invoke", "set_value", "screenshot"].includes(request.action)) throw new Error("Unsupported Windows computer action.");
   const payload = request.payload ?? {};
+  if (request.action === "screenshot") {
+    if (Object.keys(payload).length !== 0) throw new Error("Screenshot action accepts no payload.");
+    return {};
+  }
   if (request.action === "snapshot") {
     if (Object.keys(payload).some((key) => key !== "limit")) throw new Error("Snapshot payload supports only limit.");
     const limit = payload.limit ?? 100;
@@ -100,7 +120,7 @@ export class WindowsComputerTool {
   register(gateway: ToolGateway): void {
     gateway.register(
       "computer",
-      "Inspect Windows UI Automation controls and invoke or set a uniquely identified control. Every action requires exact approval.",
+      "Inspect Windows UI Automation controls, capture a bounded window screenshot, and invoke or set a uniquely identified control. Every action requires exact approval.",
       (request) => this.handle(request),
     );
   }
@@ -140,7 +160,8 @@ export class WindowsComputerTool {
       }, 20_000);
       const collect = (chunk: Buffer, stream: "stdout" | "stderr"): void => {
         size += chunk.length;
-        if (size > 48 * 1024) {
+        const maxBytes = request.action === "screenshot" ? 2_000_000 : 48 * 1024;
+        if (size > maxBytes) {
           child.kill();
           finish(new Error("Windows computer action output exceeded 48 KiB."));
           return;
