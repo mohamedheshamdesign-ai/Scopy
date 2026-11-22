@@ -73,26 +73,28 @@ Build small, testable vertical slices. Every consequential action must pass the 
 6. [x] CLI can execute the saved plan action without hand-written JSON. Typed-action steps cannot be marked successful through manual bookkeeping.
 7. [x] Built-in advisory-only profiles: assistant, brand designer, business operator, developer, research analyst, marketing strategist, and project manager. They use the local model and relevant memory but have no tools.
 8. [x] Explicit manual recovery of one interrupted in-flight step after the user confirms the prior process has stopped. Side effects remain unknown; recovery never retries automatically.
-9. [ ] Multi-agent delegation, inter-agent messaging, and independent agent work queues.
+9. [~] Sequential specialist analysis and synthesis is available in the local app. Independent agent work queues, inter-agent messaging, and tool delegation remain deferred.
 10. [ ] Tool-enabled Research and Developer agents, followed by other specialist agents, each with separately validated capabilities.
 
 **Current limits:** cancellation is permitted only between steps; an in-flight step cannot be marked skipped while its handler may still be running. Stop the prior process and use explicit interrupted-run recovery before deciding whether to retry. Only the filesystem tool is registered for guarded plan execution. Agents are advisory-only. They cannot browse, run terminal commands, or invoke tools. Unsupported plan steps remain manual. A failed or interrupted action may have side effects; inspect before retrying.
 
 ## Phase 5 — Browser and computer control
 
-1. [ ] Browser automation in an isolated context.
-2. [ ] Domain, download, and session controls.
-3. [ ] Windows computer adapter behind the tool gateway.
+1. [~] Isolated Chrome/Edge profile with public URL navigation and bounded page-text extraction. Interactive browser automation, clicks, form submission, and downloads remain deferred.
+2. [~] Top-level public URL checks and isolated profile; complete domain, redirect, subresource, download, and session controls remain deferred.
+3. [ ] Windows-wide computer adapter behind the tool gateway.
 4. [ ] Per-action risk checks and explicit approvals.
 5. [ ] Recovery and screenshot/evidence capture.
+6. [x] Fixed terminal command adapter with a strict command allowlist, workspace confinement, reduced child environment, output/timeout limits, and exact approval through the central guard.
+7. [x] Public web search adapter for user-initiated DuckDuckGo HTML search; private memory and workspace files are not attached.
 
 **Acceptance:** browser research works in isolation; consequential actions remain approval-gated; desktop actions are logged and recoverable.
 
 ## Phase 6 — Workspace and integrations
 
-1. [ ] Desktop workspace.
-2. [ ] Project/task/run/memory views.
-3. [ ] Provider and permission settings UI.
+1. [~] Loopback-only local web workspace dashboard with a per-session token; native desktop packaging remains deferred.
+2. [~] Initial task, project, memory, agent, approval, plan, run, research, browser, and terminal views. Full edit/search/filter workflows remain deferred.
+3. [ ] Provider and comprehensive permission settings UI.
 4. [ ] External integrations, each opt-in and scoped.
 5. [x] Backup restore with schema-version validation, staged-file verification, atomic replacement, and rollback protection. A broader application upgrade workflow remains open.
 
