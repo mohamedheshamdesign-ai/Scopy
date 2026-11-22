@@ -1,4 +1,4 @@
-import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import type { ActionRequest } from "../permissions/types.js";
 import { ToolGateway } from "./tool-gateway.js";
@@ -72,8 +72,8 @@ export class FilesystemTool {
     return { root, path: requested };
   }
 
-  private async handle(request: ActionRequest): Promise<string | { bytesWritten: number }> {
-    if (request.action !== "read" && request.action !== "write") {
+  private async handle(request: ActionRequest): Promise<unknown> {
+    if (request.action !== "read" && request.action !== "write" && request.action !== "list" && request.action !== "mkdir") {
       throw new Error(`Unsupported filesystem action: ${request.action}`);
     }
     if (!request.target.trim()) throw new Error("A filesystem target path is required.");
@@ -86,6 +86,29 @@ export class FilesystemTool {
         throw new FilesystemSandboxError("Resolved file is outside the configured Scopy workspace.");
       }
       return readFile(actual, "utf8");
+    }
+
+    if (request.action === "list") {
+      const actual = await realpath(path);
+      if (!isWithinRoot(root, actual)) {
+        throw new FilesystemSandboxError("Directory is outside the configured Scopy workspace.");
+      }
+      const entries = (await readdir(actual, { withFileTypes: true }))
+        .sort((left, right) => left.name.localeCompare(right.name));
+      const visible = entries.slice(0, 500).map((entry) => ({
+        name: entry.name,
+        type: entry.isSymbolicLink() ? "symlink" : entry.isDirectory() ? "directory" : entry.isFile() ? "file" : "other",
+      }));
+      return { entries: visible, truncated: entries.length > visible.length };
+    }
+
+    if (request.action === "mkdir") {
+      await mkdir(path, { recursive: true });
+      const actual = await realpath(path);
+      if (!isWithinRoot(root, actual)) {
+        throw new FilesystemSandboxError("Created directory resolves outside the configured Scopy workspace.");
+      }
+      return { created: true };
     }
 
     const payload = request.payload as FilesystemWritePayload | undefined;

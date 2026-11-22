@@ -135,6 +135,14 @@ test("typed filesystem actions are validated and persist with the plan", async (
       ...draft,
       steps: [{ ...draft.steps[0], action: { ...draft.steps[0].action, target: "C:/outside.txt" } }],
     }), /workspace-relative/);
+    const rootListing = validateGeneratedPlan({
+      ...draft,
+      steps: [{
+        ...draft.steps[0],
+        action: { tool: "filesystem", action: "list", target: "." },
+      }],
+    });
+    assert.deepEqual(rootListing.steps[0]?.action, { tool: "filesystem", action: "list", target: "." });
   } finally {
     database.close();
     await rm(home, { recursive: true, force: true });

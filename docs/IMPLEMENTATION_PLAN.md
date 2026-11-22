@@ -83,7 +83,7 @@ Implement only the contracts and infrastructure required for a first working ver
 9. Evaluation of plan quality and execution outcomes.
 10. [ ] Add tool-enabled Research and Developer agents first, then expand based on real workflows.
 
-**Acceptance:** one multi-step task is planned and reviewed; a run is started; dependency-ordered steps can be advanced manually or executed through the guarded service; default-deny, exact approvals, actor binding, tool failure recording, checkpoints, and audit trails are tested. The CLI currently registers only the filesystem tool. The planner can propose validated filesystem read/write actions; unsupported work remains manual. Automatic interrupted-side-effect recovery is not implemented. A timeout or failed result does not prove that a non-cooperative tool had no side effect; retries require review.
+**Acceptance:** one multi-step task is planned and reviewed; a run is started; dependency-ordered steps can be advanced manually or executed through the guarded service; default-deny, exact approvals, actor binding, tool failure recording, checkpoints, and audit trails are tested. The CLI currently registers only the filesystem tool. The planner can propose validated filesystem read/list/mkdir/write actions; unsupported work remains manual. Automatic interrupted-side-effect recovery is not implemented. A timeout or failed result does not prove that a non-cooperative tool had no side effect; retries require review.
 
 ## Phase 5 — Browser and computer control
 

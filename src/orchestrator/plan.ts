@@ -2,7 +2,7 @@ export type PlanRisk = "low" | "medium" | "high";
 export type PlanStatus = "draft" | "approved" | "rejected";
 
 export type PlanAction =
-  | { readonly tool: "filesystem"; readonly action: "read"; readonly target: string }
+  | { readonly tool: "filesystem"; readonly action: "read" | "list" | "mkdir"; readonly target: string }
   | { readonly tool: "filesystem"; readonly action: "write"; readonly target: string; readonly payload: { readonly content: string } };
 
 export interface PlanStepDraft {
@@ -46,16 +46,17 @@ function boundedString(value: unknown, field: string, max: number): string {
 export function validatePlanAction(value: unknown, stepId: string): PlanAction {
   if (!record(value)) throw new Error(`Plan step ${stepId} action must be an object.`);
   if (value.tool !== "filesystem") throw new Error(`Plan step ${stepId} uses an unsupported tool.`);
-  if (value.action !== "read" && value.action !== "write") throw new Error(`Plan step ${stepId} filesystem action must be read or write.`);
-  const allowedKeys = value.action === "read" ? ["tool", "action", "target"] : ["tool", "action", "target", "payload"];
+  if (value.action !== "read" && value.action !== "write" && value.action !== "list" && value.action !== "mkdir") throw new Error(`Plan step ${stepId} filesystem action must be read, list, mkdir, or write.`);
+  const allowedKeys = value.action === "write" ? ["tool", "action", "target", "payload"] : ["tool", "action", "target"];
   if (Object.keys(value).some((key) => !allowedKeys.includes(key))) throw new Error(`Plan step ${stepId} action contains unsupported fields.`);
   const target = boundedString(value.target, `step ${stepId} action target`, 240);
   const segments = target.split("/");
+  const workspaceRootListing = value.action === "list" && target === ".";
   if (target.startsWith("/") || target.includes("\\") || target.includes(":") ||
-      target.includes(String.fromCharCode(0)) || segments.some((segment) => !segment || segment === "." || segment === "..")) {
+      target.includes(String.fromCharCode(0)) || (!workspaceRootListing && segments.some((segment) => !segment || segment === "." || segment === ".."))) {
     throw new Error(`Plan step ${stepId} action target must be a safe workspace-relative path using forward slashes.`);
   }
-  if (value.action === "read") return { tool: "filesystem", action: "read", target };
+  if (value.action !== "write") return { tool: "filesystem", action: value.action, target };
   if (!record(value.payload) || typeof value.payload.content !== "string" ||
       Object.keys(value.payload).some((key) => key !== "content")) {
     throw new Error(`Plan step ${stepId} write action requires only payload.content as a string.`);

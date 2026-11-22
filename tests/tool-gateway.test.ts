@@ -143,3 +143,43 @@ test("tool gateway requires and consumes approval before sensitive tool executio
     assert.equal(approvals.getById(pending.id)?.status, "consumed");
   });
 });
+
+
+test("filesystem tool lists workspace entries and creates directories only through policy", async () => {
+  await withGateway(async ({ gateway, rules, approvals }) => {
+    rules.setRule({
+      actorId: "agent:developer", tool: "filesystem", action: "list",
+      targetPattern: "*", effect: "allow",
+    });
+    rules.setRule({
+      actorId: "agent:developer", tool: "filesystem", action: "mkdir",
+      targetPattern: "*", effect: "approval_required",
+    });
+    await assert.rejects(
+      gateway.execute({
+        actorId: "agent:developer", tool: "filesystem", action: "mkdir", target: "notes",
+      }),
+      ApprovalRequiredError,
+    );
+    const request = {
+      actorId: "agent:developer", tool: "filesystem", action: "mkdir",
+      target: "notes", payload: {},
+    };
+    const pending = approvals.request(request);
+    approvals.approve(pending.id, "local-owner");
+    const created = await gateway.execute<{ created: boolean }>(request, pending.id);
+    assert.equal(created.created, true);
+    const listing = await gateway.execute<{ entries: Array<{ name: string; type: string }>; truncated: boolean }>({
+      actorId: "agent:developer", tool: "filesystem", action: "list", target: ".",
+    });
+    assert.deepEqual(listing.entries, [{ name: "notes", type: "directory" }]);
+    assert.equal(listing.truncated, false);
+    await assert.rejects(
+      gateway.execute({
+        actorId: "agent:developer", tool: "filesystem", action: "list", target: "../",
+      }),
+      FilesystemSandboxError,
+    );
+    assert.equal(await readFile(join(workspace, "notes").replace(/\\/g, "/")).then(() => false).catch(() => true), true);
+  });
+});

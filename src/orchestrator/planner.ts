@@ -21,7 +21,7 @@ const PLANNER_SYSTEM_PROMPT = [
   "Dependencies must reference existing step IDs. Prefer dependencies on earlier steps.",
   "Risk must be low, medium, or high. Risk is an estimate, not an authorization decision.",
   "Do not claim that any action has been performed. Do not invent access, files, integrations, or facts.",
-  "For supported filesystem work, include a typed action object using only tool=filesystem and action=read or write. The action field is optional for manual/research steps. Target must be workspace-relative, use forward slashes, and contain no absolute path, drive letter, backslash, or dot segment. A write action requires payload.content as plain text (maximum 16384 characters); a read action omits payload. For unsupported work, omit action.",
+  "For supported filesystem work, include a typed action object using only tool=filesystem and action=read or write. The action field is optional for manual/research steps. Target must be workspace-relative, use forward slashes, and contain no absolute path, drive letter, backslash, or dot segment (except `.` for listing the workspace root). A write action requires payload.content as plain text (maximum 16384 characters); a read action omits payload. For unsupported work, omit action.",
   "Never include shell commands, terminal commands, arbitrary tool names, credentials, or approval bypasses. Plan approval is not tool authorization; policy and exact action approval still apply.",
   "Break consequential actions into reviewable steps and clearly identify their expected outputs.",
 ].join("\n");
