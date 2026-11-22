@@ -25,6 +25,8 @@ import { PlanStepExecutor } from "./orchestrator/step-executor.js";
 import { startLocalApp } from "./app/local-app.js";
 import { BrowserTool } from "./tools/browser-tool.js";
 
+let activeBrowserTool: BrowserTool | undefined;
+
 function printUsage(): void {
   console.log(`
 Scopy local core
@@ -517,7 +519,8 @@ async function main(): Promise<void> {
         const approvals = new ApprovalService(database, policy);
         const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
         new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
-        new BrowserTool({ homeDir: config.homeDir }).register(gateway);
+        activeBrowserTool = new BrowserTool({ homeDir: config.homeDir });
+        activeBrowserTool.register(gateway);
         const runtime = new RuntimeEngine(database, gateway);
         const executor = new PlanStepExecutor(runs, policy, approvals, runtime, logger);
         const result = await executor.executeReadySteps(runId, {}, approvalId);
@@ -764,6 +767,8 @@ async function main(): Promise<void> {
     }
     throw error;
   } finally {
+    activeBrowserTool?.close();
+    activeBrowserTool = undefined;
     if (databaseOpen) database.close();
   }
 }
