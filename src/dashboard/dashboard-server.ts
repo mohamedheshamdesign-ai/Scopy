@@ -29,6 +29,7 @@ import { PlanStepExecutor } from "../orchestrator/step-executor.js";
 import { BackupService } from "../backup/backup-service.js";
 import { LocalBrowserSession } from "../browser/browser-session.js";
 import { dashboardHtml } from "./dashboard-html.js";
+import { searchWeb } from "../research/web-research.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
 const ACTOR = "user:local";
@@ -246,6 +247,13 @@ export class DashboardServer {
     const permissions = new PermissionRepository(this.database);
     const policy = new PolicyEngine(permissions, this.config.safetyProfile);
     const approvals = new ApprovalService(this.database, policy);
+
+    if (method === "POST" && path === "/api/research") {
+      const input = await body(request);
+      const query = stringField(input, "query", 400);
+      json(response, 200, await searchWeb(query, 8));
+      return;
+    }
 
     if (method === "GET" && path === "/api/state") {
       const counts = {
