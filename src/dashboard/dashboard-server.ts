@@ -521,6 +521,9 @@ export class DashboardServer {
       if (action === "click") payload = { selector: stringField(input, "selector", 500) };
       else if (action === "type") payload = { selector: stringField(input, "selector", 500), text: stringField(input, "text", 5000) };
       else payload = { key: stringField(input, "key", 20) };
+      const matchingRule = permissions.findMatching(ACTOR, "browser", action, target);
+      if (!matchingRule) permissions.setRule({ actorId: ACTOR, tool: "browser", action, targetPattern: target, effect: "approval_required" });
+      else if (matchingRule.effect !== "approval_required") throw new Error("An existing browser permission rule does not require approval. Review it in Settings before proceeding.");
       json(response, 201, approvals.request({ actorId: ACTOR, tool: "browser", action, target, payload }));
       return;
     }
