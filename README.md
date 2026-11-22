@@ -47,6 +47,7 @@ Run the development CLI:
 
 ```powershell
 npm run dev -- health
+npm run dev -- dashboard
 npm run dev -- task add "Prepare Scopy project brief"
 npm run dev -- task list
 npm run dev -- task show <TASK_ID>
@@ -179,3 +180,16 @@ CLI chat and advisory specialist agents retrieve up to five relevant active memo
 A conservative Windows/Vulkan launcher, E:-scoped Hugging Face cache, model integrity/resource diagnostics, exact model ID discovery, and a Scopy CLI throughput benchmark are documented in [docs/LOCAL_AI_WINDOWS.md](docs/LOCAL_AI_WINDOWS.md).
 
 The local runtime launcher does not download models: it requires the already-cached Q4_K_M GGUF, binds only to 127.0.0.1, uses one sequence, and leaves GPU layer placement to llama.cpp memory fitting. Flash Attention, quantized KV cache, and speculative decoding are not enabled in the baseline unless separately measured and explicitly selected.
+
+
+## Local dashboard
+
+Start the built-in local workspace:
+
+```powershell
+npm run dev -- dashboard
+```
+
+Open the exact loopback URL printed in PowerShell. The URL contains a one-time local access token fragment; do not share it or a screenshot that exposes it. The token is retained under `SCOPY_HOME\secrets\dashboard-token.txt`. The dashboard binds to `127.0.0.1` only, validates the Host and Origin headers, requires a bearer token for API calls, and does not load remote scripts, fonts, analytics, or assets.
+
+The dashboard currently provides a local overview, assistant/specialist chat, task and project management, user-confirmed memory, plan review, guarded run execution, approval review, permission rules, audit activity, and verified database backups. Chat requires a configured local model in the same PowerShell session. Specialist profiles remain advisory-only; browser automation, general terminal execution, desktop control, and external account integrations are not implied by the dashboard.
