@@ -47,6 +47,7 @@ Run the development CLI:
 
 ```powershell
 npm run dev -- health
+npm run dev -- dashboard
 npm run dev -- task add "Prepare Scopy project brief"
 npm run dev -- task list
 npm run dev -- task show <TASK_ID>
@@ -179,3 +180,40 @@ CLI chat and advisory specialist agents retrieve up to five relevant active memo
 A conservative Windows/Vulkan launcher, E:-scoped Hugging Face cache, model integrity/resource diagnostics, exact model ID discovery, and a Scopy CLI throughput benchmark are documented in [docs/LOCAL_AI_WINDOWS.md](docs/LOCAL_AI_WINDOWS.md).
 
 The local runtime launcher does not download models: it requires the already-cached Q4_K_M GGUF, binds only to 127.0.0.1, uses one sequence, and leaves GPU layer placement to llama.cpp memory fitting. Flash Attention, quantized KV cache, and speculative decoding are not enabled in the baseline unless separately measured and explicitly selected.
+
+
+## Local dashboard
+
+Start the built-in local workspace:
+
+```powershell
+npm run dev -- dashboard
+```
+
+Open the exact loopback URL printed in PowerShell. The URL contains a one-time local access token fragment; do not share it or a screenshot that exposes it. After first open, Scopy exchanges it for an HttpOnly, SameSite local session cookie so the installed PWA can launch from its normal start URL. The token is retained under `SCOPY_HOME\secrets\dashboard-token.txt`. The dashboard binds to `127.0.0.1` only, validates the Host and Origin headers, requires a bearer token for API calls, and does not load remote scripts, fonts, analytics, or assets.
+
+The dashboard provides a local overview, assistant/specialist chat, task and project management, user-confirmed memory, plan review, guarded run execution, approval review, permission rules, audit activity, and verified database backups. Chat and planning require a configured local model in the same PowerShell session. It also includes isolated Chrome/Edge navigation with page-text extraction, a constrained terminal (node/git/python/powershell.exe, no shell, workspace-only working directory, bounded time/output), and sequential two-to-three-specialist team synthesis. Browser navigation and terminal actions are exact-approval-gated when invoked through plans. These are limited capabilities: browser clicks, form submissions, downloads, signed-in browser sessions, advanced desktop UI automation (coordinates, keyboard shortcuts, screenshots, and robust recovery) and autonomous multi-agent tool delegation are not implemented. The dashboard also supports opt-in local stdio MCP servers; tool calls require exact approval, and only selected environment variable names are passed to the server process. Basic Windows UI Automation can inspect a window's control tree, invoke a uniquely identified control, or set a value after exact approval. Built-in OAuth flows and remote HTTP MCP transports are not included.
+
+
+
+### Controlled terminal
+
+The local dashboard includes a constrained terminal action. It launches only `node`, `git`, `python`, or `powershell.exe` as a direct child process (no shell), requires an exact one-time approval by default, confines the working directory to the configured Scopy workspace, limits arguments, execution time (up to two minutes), and combined output (48 KiB). A process that spawns detached child processes may outlive the direct child timeout; this is not an OS-level sandbox. Never pass credentials in command-line arguments.
+
+
+
+### Isolated browser and specialist team
+
+The dashboard can launch Chrome or Edge using a dedicated profile under `SCOPY_HOME\browser-profile`, open a URL, and extract the visible page text for review. It does not attach to the user's normal browser profile or reuse its cookies. Browser automation is currently limited to navigation and page reading; it does not click buttons, submit forms, download files, or access signed-in sessions. Team mode runs two or three advisory specialists sequentially through the same configured local model, then synthesizes their contributions; it is not yet autonomous multi-agent tool delegation.
+
+
+
+### MCP integrations
+
+Open Integrations in the local dashboard to register an MCP stdio server. The server configuration is stored under `SCOPY_HOME\secrets\mcp-servers.json`. Scopy supports local `node`, `python`, or `powershell.exe` launchers without a shell; arguments are stored as configuration, while credentials should be supplied through PowerShell environment variables whose names are explicitly listed in `passEnv`. Discover a server's tools, inspect its input schema, request an exact approval, then execute the approved call. The MCP process is started for each discovery/call and closed afterward. Do not place credentials in arguments or tool payloads. This is a stdio bridge, not a built-in OAuth client or remote MCP transport.
+
+
+
+### Windows computer control
+
+Open Computer in the local dashboard. Scopy uses Windows UI Automation against an exact top-level window title and a uniquely matched control Automation ID or exact name. Supported actions are inspect controls, invoke, and set value. Each action requires exact one-time approval. This initial adapter does not capture screenshots, click screen coordinates, send global keyboard shortcuts, or provide OS-level isolation; some elevated or custom-drawn applications may not expose usable UI Automation controls.

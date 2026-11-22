@@ -35,6 +35,8 @@ __pycache__/
 # Local model cache, runtime binaries, temp files, and user workspace
 cache/
 runtime/
+browser-profile/
+
 temp/
 logs/
 workspace/*

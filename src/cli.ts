@@ -22,6 +22,12 @@ import { RuntimeEngine } from "./runtime/runtime-engine.js";
 import { FilesystemTool } from "./tools/filesystem-tool.js";
 import { ToolGateway } from "./tools/tool-gateway.js";
 import { PlanStepExecutor } from "./orchestrator/step-executor.js";
+import { DashboardServer } from "./dashboard/dashboard-server.js";
+import { TerminalTool } from "./tools/terminal-tool.js";
+import { BrowserTool } from "./tools/browser-tool.js";
+import { McpServerManager } from "./integrations/mcp/mcp-server-manager.js";
+import { McpTool } from "./tools/mcp-tool.js";
+import { WindowsComputerTool } from "./tools/windows-computer-tool.js";
 
 function printUsage(): void {
   console.log(`
@@ -30,6 +36,7 @@ Scopy local core
 Commands:
   npm run dev -- health
   npm run dev -- doctor
+  npm run dev -- dashboard
   npm run dev -- task add "Task title"
   npm run dev -- task list
   npm run dev -- task show <task-id>
@@ -108,6 +115,12 @@ async function main(): Promise<void> {
   logger.info("cli.command.started", { command: command ?? "unknown", subcommand: subcommand ?? null });
 
   try {
+
+    if (command === "dashboard") {
+      if (subcommand !== undefined && subcommand !== "start") throw new Error("Usage: dashboard [start]");
+      await new DashboardServer(config, database).start();
+      return;
+    }
 
     if (command === "health") {
       console.log(JSON.stringify({
@@ -494,6 +507,10 @@ async function main(): Promise<void> {
         const approvals = new ApprovalService(database, policy);
         const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
         new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
+        new TerminalTool(config.workspaceDir).register(gateway);
+        new BrowserTool(config.homeDir).register(gateway);
+        new McpTool(new McpServerManager(config.homeDir)).register(gateway);
+        new WindowsComputerTool().register(gateway);
         const runtime = new RuntimeEngine(database, gateway);
         const executor = new PlanStepExecutor(runs, policy, approvals, runtime, logger);
         const result = await executor.executeReadySteps(runId, {}, approvalId);
@@ -576,6 +593,10 @@ async function main(): Promise<void> {
             const approvals = new ApprovalService(database, policy);
             const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
             new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
+        new TerminalTool(config.workspaceDir).register(gateway);
+        new BrowserTool(config.homeDir).register(gateway);
+        new McpTool(new McpServerManager(config.homeDir)).register(gateway);
+        new WindowsComputerTool().register(gateway);
             const runtime = new RuntimeEngine(database, gateway);
             const executor = new PlanStepExecutor(runs, policy, approvals, runtime, logger);
             try {
@@ -618,6 +639,10 @@ async function main(): Promise<void> {
           const approvals = new ApprovalService(database, policy);
           const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
           new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
+        new TerminalTool(config.workspaceDir).register(gateway);
+        new BrowserTool(config.homeDir).register(gateway);
+        new McpTool(new McpServerManager(config.homeDir)).register(gateway);
+        new WindowsComputerTool().register(gateway);
           const runtime = new RuntimeEngine(database, gateway);
           const executor = new PlanStepExecutor(runs, policy, approvals, runtime, logger);
           const result = await executor.execute(runId, stepId, {

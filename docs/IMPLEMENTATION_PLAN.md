@@ -70,30 +70,32 @@ Build small, testable vertical slices. Every consequential action must pass the 
 3. [x] Orchestrator run lifecycle with dependency gating, serial steps, cancellation, explicit retry, and checkpoints.
 4. [x] Guarded step executor: policy preflight, actor binding, exact approval, RuntimeEngine, ToolGateway, and ExecutionGuard.
 5. [x] Typed filesystem action proposals persisted with plan steps and copied into runs. Supported actions: read, list, mkdir, write.
+   [x] Typed browser open and constrained terminal run actions with exact approval requirements.
 6. [x] CLI can execute the saved plan action without hand-written JSON. Typed-action steps cannot be marked successful through manual bookkeeping.
 7. [x] Built-in advisory-only profiles: assistant, brand designer, business operator, developer, research analyst, marketing strategist, and project manager. They use the local model and relevant memory but have no tools.
 8. [x] Explicit manual recovery of one interrupted in-flight step after the user confirms the prior process has stopped. Side effects remain unknown; recovery never retries automatically.
-9. [ ] Multi-agent delegation, inter-agent messaging, and independent agent work queues.
-10. [ ] Tool-enabled Research and Developer agents, followed by other specialist agents, each with separately validated capabilities.
+9. [ ] Independent multi-agent delegation, inter-agent messaging, and independent agent work queues. A sequential advisory team-synthesis endpoint exists in the local dashboard.
+10. [ ] Tool-enabled Research and Developer agents, followed by other specialists, with independent scoped capabilities. Planner can currently propose only typed filesystem, browser-open, and bounded terminal actions.
 
-**Current limits:** cancellation is permitted only between steps; an in-flight step cannot be marked skipped while its handler may still be running. Stop the prior process and use explicit interrupted-run recovery before deciding whether to retry. Only the filesystem tool is registered for guarded plan execution. Agents are advisory-only. They cannot browse, run terminal commands, or invoke tools. Unsupported plan steps remain manual. A failed or interrupted action may have side effects; inspect before retrying.
+**Current limits:** cancellation is permitted only between steps; an in-flight step cannot be marked skipped while its handler may still be running. Stop the prior process and use explicit interrupted-run recovery before deciding whether to retry. Guarded plan execution registers filesystem, isolated browser navigation/text extraction, and a bounded terminal adapter. Browser and terminal actions require exact one-time approval by default. Specialist profiles remain advisory-only; the dashboard can run two or three specialists sequentially and synthesize their advice, but agents do not independently invoke tools. Unsupported plan steps remain manual. Terminal process isolation is not OS-level and spawned descendants may outlive the direct process timeout. Browser actions do not reuse the normal browser profile or support clicks/forms/downloads.
 
 ## Phase 5 — Browser and computer control
 
-1. [ ] Browser automation in an isolated context.
+1. [x] Isolated Chromium/Edge launch, URL navigation, and bounded visible-text extraction through a dedicated profile. Interactive browser actions remain open.
 2. [ ] Domain, download, and session controls.
-3. [ ] Windows computer adapter behind the tool gateway.
-4. [ ] Per-action risk checks and explicit approvals.
-5. [ ] Recovery and screenshot/evidence capture.
+3. [x] Initial Windows UI Automation adapter behind the tool gateway: inspect controls, invoke a uniquely matched control, and set a value.
+4. [x] Exact one-time approval for each computer action.
+5. [ ] Screenshot/evidence capture, coordinate/keyboard input, broader application compatibility, and robust recovery.
 
 **Acceptance:** browser research works in isolation; consequential actions remain approval-gated; desktop actions are logged and recoverable.
 
 ## Phase 6 — Workspace and integrations
 
-1. [ ] Desktop workspace.
-2. [ ] Project/task/run/memory views.
+1. [x] Installable local PWA workspace with standalone display mode and local session cookie. Native desktop packaging and process lifecycle remain open.
+2. [x] Initial project/task/run/memory/approval/permission/audit dashboard views.
 3. [ ] Provider and permission settings UI.
-4. [ ] External integrations, each opt-in and scoped.
+4. [x] Initial local stdio MCP integration bridge with explicit environment-variable pass-through and exact approval for each tool call.
+   [ ] Built-in OAuth flows, remote HTTP MCP transports, persistent MCP server lifecycle, and provider-specific integration UX.
 5. [x] Backup restore with schema-version validation, staged-file verification, atomic replacement, and rollback protection. A broader application upgrade workflow remains open.
 
 **Acceptance:** projects and agent work can be managed and reviewed from one local interface.

@@ -210,7 +210,7 @@ test("workspace_assist allows workspace reads, gates changes, and denies other t
     assert.equal(policy.evaluate(request("filesystem", "list")).effect, "allow");
     assert.equal(policy.evaluate(request("filesystem", "write")).effect, "approval_required");
     assert.equal(policy.evaluate(request("filesystem", "mkdir")).effect, "approval_required");
-    assert.equal(policy.evaluate(request("terminal", "run")).effect, "deny");
+    assert.equal(policy.evaluate(request("terminal", "run")).effect, "approval_required");
     assert.equal(policy.evaluate(request("filesystem", "read", "agent:developer")).effect, "deny");
   });
 });
@@ -234,5 +234,54 @@ test("workspace_assist routes write actions through exact approval", async () =>
     assert.equal(result, "written");
     assert.equal(executed, true);
     assert.equal(approvals.getById(pending.id)?.status, "consumed");
+  });
+});
+
+
+test("terminal and browser actions cannot bypass explicit approval with an allow rule", async () => {
+  await withServices(({ rules, policy }) => {
+    rules.setRule({ actorId: "user:local", tool: "terminal", action: "run", effect: "allow" });
+    assert.equal(policy.evaluate({
+      actorId: "user:local", tool: "terminal", action: "run", target: ".",
+      payload: { executable: "node", args: ["--version"], timeoutMs: 5000 },
+    }).effect, "approval_required");
+
+    rules.setRule({ actorId: "user:local", tool: "browser", action: "open", effect: "allow" });
+    assert.equal(policy.evaluate({
+      actorId: "user:local", tool: "browser", action: "open", target: "https://example.com",
+    }).effect, "approval_required");
+
+    rules.setRule({ actorId: "user:local", tool: "browser", action: "open", effect: "deny" });
+    assert.equal(policy.evaluate({
+      actorId: "user:local", tool: "browser", action: "open", target: "https://example.com",
+    }).effect, "deny");
+  });
+});
+
+
+test("Windows computer actions always require exact approval even when an allow rule exists", async () => {
+  await withServices(({ rules, policy }) => {
+    rules.setRule({ actorId: "user:local", tool: "computer", action: "invoke", effect: "allow" });
+    assert.equal(policy.evaluate({
+      actorId: "user:local", tool: "computer", action: "invoke",
+      target: "Untitled - Notepad", payload: { automationId: "ButtonSave" },
+    }).effect, "approval_required");
+    rules.setRule({ actorId: "user:local", tool: "computer", action: "invoke", effect: "deny" });
+    assert.equal(policy.evaluate({
+      actorId: "user:local", tool: "computer", action: "invoke",
+      target: "Untitled - Notepad", payload: { automationId: "ButtonSave" },
+    }).effect, "deny");
+  });
+});
+
+
+test("MCP external tool calls always require exact approval even with an allow rule", async () => {
+  await withServices(({ rules, policy }) => {
+    rules.setRule({ actorId: "user:local", tool: "mcp", action: "call", effect: "allow" });
+    assert.equal(policy.evaluate({
+      actorId: "user:local", tool: "mcp", action: "call",
+      target: "github/create_issue",
+      payload: { arguments: { title: "Approved issue" }, serverFingerprint: "a".repeat(64) },
+    }).effect, "approval_required");
   });
 });

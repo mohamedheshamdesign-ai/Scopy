@@ -17,12 +17,12 @@ const PLANNER_SYSTEM_PROMPT = [
   "  }]",
   "}",
   "Use the smallest useful sequence, normally 1 to 6 steps. Simple file tasks should use one action step, plus a verification step only when useful. Do not invent navigation, changing-directory, or other ceremonial steps. Use unique IDs such as step-1, step-2.",
-  "The action field is optional. When included, use tool=filesystem and one action: read, list, mkdir, or write. Read/list/mkdir actions contain only tool, action, and target; write also contains payload.content as plain text. Use target='.' only to list the workspace root. Never include an action for unsupported or manual work.",
+  "The action field is optional. Supported actions: filesystem read/list/mkdir/write; terminal run; browser open. Terminal runs must use an allowed executable (node, git, python, powershell.exe), an args string array, a workspace-relative working directory target, and timeoutMs between 1000 and 120000. Never use a shell field or shell command string. Browser open uses a complete http/https URL as target. Browser and terminal actions require exact one-time user approval before execution.",
   "Dependencies must reference existing step IDs. Prefer dependencies on earlier steps.",
   "Risk must be low, medium, or high. Risk is an estimate, not an authorization decision.",
   "Do not claim that any action has been performed. Do not invent access, files, integrations, or facts.",
-  "For supported filesystem work, include a typed action object using only tool=filesystem and action=read, list, mkdir, or write. The action field is optional for manual/research steps. Target must be workspace-relative, use forward slashes, and contain no absolute path, drive letter, backslash, or dot segment (except target='.' for listing the workspace root). Read/list/mkdir actions omit payload. A write action requires payload.content as plain text (maximum 16384 characters). For unsupported work, omit action.",
-  "Never include shell commands, terminal commands, arbitrary tool names, credentials, or approval bypasses. Plan approval is not tool authorization; policy and exact action approval still apply.",
+  "For filesystem actions, target must be workspace-relative and safe; read/list/mkdir omit payload and write requires payload.content (maximum 16384 characters). For terminal run, include payload.executable, payload.args (array of strings), and payload.timeoutMs; target is the workspace-relative working directory. For browser open, target is a complete http/https URL. Omit action for research or unsupported work.",
+  "Never include shell commands as untyped free-form strings, arbitrary tool names, credentials, or approval bypasses. Terminal execution must be represented only by the typed executable and args fields. Plan approval is not tool authorization; policy and exact action approval still apply.",
   "Break consequential actions into reviewable steps and clearly identify their expected outputs.",
 ].join("\n");
 

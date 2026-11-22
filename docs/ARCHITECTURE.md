@@ -95,10 +95,10 @@ The SQLite driver is intentionally not locked in this document. Before selection
 
 ## 7. Computer access and isolation
 
-- Browser automation should use a dedicated browser context/profile with explicit download and domain controls.
+- Browser navigation uses a dedicated Chrome/Edge profile under SCOPY_HOME and a loopback-only DevTools endpoint. Current support is navigation and bounded visible-text extraction; clicks, forms, downloads, and normal-profile cookies are not supported.
 - Filesystem access should be restricted to configured workspace roots by default.
-- Terminal execution should use command allowlists or per-command approval, with working-directory and timeout constraints.
-- Windows UI automation should run behind a separate adapter and require explicit approval for actions that affect external accounts, system settings, or user data.
+- Terminal execution uses a short executable allowlist, no shell, workspace-only working directories, bounded time/output, and exact one-time approval. It is not an OS-level sandbox; spawned descendants may outlive the direct child timeout.
+- Windows UI Automation runs through a fixed PowerShell script and supports control-tree inspection, uniquely matched InvokePattern actions, and ValuePattern updates. Every action requires exact approval. Screenshots, coordinates, global keyboard input, and OS-level isolation remain open.
 - Untrusted page content, documents, code, and tool output are data, not instructions. They cannot change Scopy's policies.
 
 ## 8. Initial technology direction
@@ -165,3 +165,18 @@ Scopy/
 - Memory records include type, scope, content, source type/reference, confidence, status, timestamps, and optional expiry.
 - Initial retrieval is lexical and deterministic, with global plus project-scope filtering. Archived and expired records are excluded.
 - Cloud adapters, streaming, tool calling, vision, automatic memory extraction, embeddings, and consolidation remain unimplemented.
+
+
+## 12. Current local workspace and integration adapters
+
+The current CLI can launch an installable local PWA dashboard with a loopback-only HTTP server. The first visit exchanges the token fragment for an HttpOnly, SameSite session cookie so the standalone PWA can launch from its normal start URL. The service worker caches only the application shell and never caches API responses.
+
+The initial guarded adapters are deliberately narrow:
+
+- **Filesystem:** UTF-8 read/list/mkdir/write within the configured workspace, with resolved-path checks and bounded file sizes.
+- **Terminal:** direct process launch (no shell) for node, git, python, or powershell.exe; workspace-only working directory; 120-second maximum; bounded output; exact approval for every action.
+- **Browser:** isolated Chrome/Edge profile, loopback DevTools, URL navigation, and up to 20,000 characters of visible page text. Page content is untrusted input.
+- **Windows computer:** UI Automation snapshot, unique-control invoke, and unique-control set-value through a fixed PowerShell script; exact window title and control identity are reviewed before one-time approval.
+- **MCP:** opt-in local stdio servers launched with node, python, or powershell.exe. Only named environment variables are passed. Tool calls are exact-approval-gated and approvals are bound to a hash of the MCP server configuration.
+
+The dashboard can also run two or three advisory specialist profiles sequentially and synthesize their contributions. This is not independent autonomous agent delegation: specialist profiles do not call tools, and there is no inter-agent messaging or persistent work queue. External OAuth flows, remote HTTP MCP, advanced desktop control, browser clicks/forms/downloads, and native desktop packaging remain future work.

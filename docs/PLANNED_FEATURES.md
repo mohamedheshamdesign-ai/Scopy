@@ -23,21 +23,21 @@
 - Plan schema and validation.
 - Orchestrator run lifecycle.
 - Agent registry and capability declarations.
-- Delegation, dependencies, and checkpoint recovery.
+- Independent multi-agent delegation, inter-agent messaging, and agent work queues (dashboard team synthesis is sequential/advisory only).
+- Tool-enabled Research and Developer agents with separately scoped browser/terminal/filesystem capabilities.
 - Plan-quality and execution-outcome evaluation.
-- Research and Developer agents first, then other specialists based on real workflows.
 
 ## Phase 5 — Browser and computer control
-- Browser automation in an isolated context.
-- Domain, download, and session controls.
-- Windows computer adapter behind the tool gateway.
-- Per-action risk checks, explicit approvals, recovery, and evidence capture.
+- Expand the isolated browser beyond navigation/text extraction to reviewed clicks, forms, downloads, and explicit session controls.
+- Domain allowlists, download quarantine, and session isolation.
+- Expand the initial UI Automation adapter with screenshots, coordinate/keyboard input where safe, broader app compatibility, and recovery/evidence capture.
+- Per-action risk checks and explicit approvals for all desktop operations.
 
 ## Phase 6 — Workspace and integrations
-- Desktop workspace.
-- Project/task/run/memory views.
-- Provider and permission settings.
-- Opt-in scoped external integrations.
+- Native desktop packaging and lifecycle beyond the installable PWA.
+- Expand dashboard provider/permission settings and local workspace views.
+- Built-in OAuth flows and remote HTTP MCP transports.
+- Provider-specific integration UX, persistent server lifecycle/health management, and more granular tool capability scopes.
 - Full application upgrade workflow. Backup creation, verification, and guarded restore are implemented.
 
 ## How to update this file

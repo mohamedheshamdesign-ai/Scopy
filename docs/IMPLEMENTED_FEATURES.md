@@ -1,9 +1,9 @@
 # Scopy Implemented Features
 
-**Evidence baseline:** tracked source and test files on branch `dev`, inspected 2026-11-22.  
+**Evidence baseline:** tracked source files on `delivery/scopy-local-workspace`, inspected 2026-11-23.  
 **Status vocabulary:** Implemented = code exists; Partial = a limited implementation exists; Planned = described as future work; Unverified = no direct evidence inspected.
 
-This document describes code presence, not a claim that the current local checkout has passed its tests. Check results must come from a fresh test run.
+This document describes code presence, not a claim that the current local checkout has passed its tests. The new dashboard, browser, and terminal additions require CI confirmation before merge.
 
 ## Implemented or partially implemented
 
@@ -37,17 +37,27 @@ This document describes code presence, not a claim that the current local checko
 | Built-in specialist agent registry | Implemented, advisory-only profiles | `src/agents/agent-registry.ts`, `src/cli.ts` | `tests/agents.test.ts`; includes assistant, brand designer, business operator, developer, research analyst, marketing strategist, and project manager profiles. Agent runs use the local provider and relevant lexical memory. They have no tools and cannot browse or execute actions. |
 | Guarded orchestrator step execution | Implemented, bounded filesystem action proposals | `src/orchestrator/plan.ts`, `src/orchestrator/action-resolver.ts`, `src/orchestrator/step-executor.ts`, `src/cli.ts`, `src/runtime/runtime-engine.ts`, `src/tools/tool-gateway.ts`, `src/permissions/*` | `tests/orchestrator.test.ts`, `tests/orchestrator-run.test.ts`, `tests/orchestrator-step-executor.test.ts`; the planner may attach a validated filesystem read/list/mkdir/write action to a step. Actions persist with plans and runs, resolve to typed requests, and execute only through policy, exact one-time approval, RuntimeEngine, ToolGateway, and ExecutionGuard. The CLI executes the saved action without hand-written JSON, and `run execute` processes consecutive typed filesystem steps in dependency order until it reaches an approval request, a manual step, or a terminal run. Unsupported work remains manual. Filesystem access is workspace-scoped, not OS-sandboxed. |
 
+| Local authenticated dashboard | Implemented, initial local workspace | `src/dashboard/dashboard-server.ts`, `src/dashboard/dashboard-html.ts`, `src/cli.ts` | Loopback-only HTTP server, Host/Origin checks, per-install bearer token, no remote assets, and UI for tasks/projects/memory/agents/plans/runs/approvals/permissions/audit/backups. Dashboard is an installable local PWA, not a native Electron app. |
+| Constrained terminal adapter | Implemented, limited and approval-gated | `src/tools/terminal-tool.ts`, `src/permissions/policy-engine.ts`, `src/dashboard/dashboard-server.ts` | Direct process launch (no shell) for node/git/python/powershell.exe, working directory confined to configured workspace, 2-minute timeout, 64 KiB combined output, and exact one-time approval by default. Not an OS-level sandbox; detached descendants may outlive the direct process timeout. |
+| Isolated browser navigation and text extraction | Implemented, limited | `src/browser/browser-session.ts`, `src/tools/browser-tool.ts`, `src/dashboard/dashboard-server.ts` | Uses Chrome/Edge with a separate profile under SCOPY_HOME, loopback-only DevTools endpoint, navigation and visible text extraction capped at 20,000 characters. Does not reuse the user's regular browser profile. No clicking, form submission, downloads, cookies from existing profiles, or authenticated browsing. |
+| Typed browser and terminal plan actions | Implemented, limited | `src/orchestrator/plan.ts`, `src/orchestrator/action-resolver.ts`, `src/orchestrator/planner.ts`, `src/orchestrator/step-executor.ts` | Planner can propose browser open and constrained terminal run actions. Policy requires exact one-time approval before execution; filesystem actions retain their existing policy behavior. |
+| Sequential specialist team synthesis | Implemented, advisory-only | `src/dashboard/dashboard-server.ts`, `src/agents/agent-registry.ts` | Runs two or three selected specialist profiles sequentially through the same local model, then synthesizes contributions. This is not independent concurrent agents, inter-agent messaging, or tool-enabled autonomous delegation. |
+
+| Opt-in local MCP integrations | Implemented, stdio bridge | `src/integrations/mcp/mcp-server-manager.ts`, `src/tools/mcp-tool.ts`, `src/dashboard/dashboard-server.ts` | Local child-process servers launched without a shell; allowlisted command names; selected environment variable pass-through; MCP initialize/tools-list/tools-call; per-call process cleanup; exact approval for every external tool call; configuration kept under the local secrets directory. No OAuth flow, remote HTTP transport, or persistent server process manager. |
+
+| Windows UI Automation | Implemented, basic and approval-gated | `src/tools/windows-computer-tool.ts`, `src/dashboard/dashboard-server.ts`, `src/permissions/policy-engine.ts` | Uses a fixed PowerShell UI Automation script to inspect a window's control tree, invoke one uniquely matched control, or set a ValuePattern value. Exact window title and exact control identifier are included in the approval request. Windows-only; no screenshots, coordinates, global keyboard input, process isolation, or robust recovery. |
+
 ## Not implemented or not evidenced by the current tracked source tree
 
-- Action resolution is limited to validated filesystem read/list/mkdir/write proposals. Research, browser, terminal, desktop, and external-app actions are not supported by the resolver. Automatic crash recovery of interrupted side effects remains unimplemented.
-- Multi-agent delegation, inter-agent messaging, and independent agent work queues.
+- Action resolution supports validated filesystem read/list/mkdir/write, browser open, and constrained terminal run proposals. General research workflows, browser interaction beyond navigation/text extraction, desktop UI actions, and external-app actions are not supported by the resolver. Automatic crash recovery of interrupted side effects remains unimplemented.
+- Autonomous multi-agent delegation, inter-agent messaging, and independent agent work queues. Dashboard team mode is sequential advisory synthesis only.
 - Tool-enabled autonomous specialist agents; current specialist profiles are advisory-only and do not have web, filesystem, terminal, or external-app tools.
-- Browser automation.
-- Windows computer/UI control.
-- Terminal command execution tool.
+- Browser interaction beyond navigation and page-text extraction (clicks, forms, downloads, authenticated sessions).
+- Advanced Windows computer/UI control: screenshots, coordinate-based input, global keyboard shortcuts, broader application compatibility, and recovery/evidence capture.
+- General terminal execution beyond the bounded, approval-gated executable allowlist.
 - MCP tool integration.
-- Desktop application/workspace.
-- External app integrations.
+- Native desktop application/workspace (the current dashboard is browser-served).
+- Built-in OAuth flows, remote HTTP MCP transports, managed long-lived server processes, and provider-specific external account integrations.
 - Embeddings, vector database, automatic memory extraction, and memory consolidation.
 - Streaming chat, AI tool calling, and vision support.
 - General structured logging with secret redaction.
