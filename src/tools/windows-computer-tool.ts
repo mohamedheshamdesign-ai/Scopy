@@ -163,7 +163,7 @@ export class WindowsComputerTool {
         const maxBytes = request.action === "screenshot" ? 1_048_576 : 48 * 1024;
         if (size > maxBytes) {
           child.kill();
-          finish(new Error("Windows computer action output exceeded 48 KiB."));
+          finish(new Error("Windows computer action output exceeded its configured size limit."));
           return;
         }
         if (stream === "stdout") stdout += chunk.toString("utf8");
