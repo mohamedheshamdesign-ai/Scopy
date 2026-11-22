@@ -33,7 +33,7 @@ Implement only the contracts and infrastructure required for a first working ver
 6. Run/task IDs, timestamps, status transitions, and audit events.
 7. Unit and integration tests.
 
-**Acceptance:** create, list, update, and complete a task locally; restart Scopy and verify persistence; migration and backup tests pass.
+**Acceptance:** create, list, update, and complete tasks; create/list/archive projects; restart Scopy and verify persistence. Backup/restore validation remains open.
 
 ## Phase 2 — Controlled execution
 

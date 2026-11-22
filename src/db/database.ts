@@ -259,6 +259,26 @@ const migrations: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 8,
+    name: "projects_and_task_project_links",
+    up(database) {
+      database.exec(`
+        CREATE TABLE projects (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL CHECK(length(trim(name)) BETWEEN 1 AND 120),
+          description TEXT NOT NULL DEFAULT '' CHECK(length(description) <= 4000),
+          status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'archived')),
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          archived_at TEXT
+        ) STRICT;
+        CREATE INDEX idx_projects_status_updated ON projects(status, updated_at DESC);
+        ALTER TABLE tasks ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL;
+        CREATE INDEX idx_tasks_project_status_created ON tasks(project_id, status, created_at DESC);
+      `);
+    },
+  },
 ];
 
 function applyMigrations(database: ScopyDatabase): void {

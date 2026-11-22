@@ -37,7 +37,13 @@ Run the development CLI:
 npm run dev -- health
 npm run dev -- task add "Prepare Scopy project brief"
 npm run dev -- task list
+npm run dev -- project create "Personal Brand" "Brand design projects"
+npm run dev -- project list
+npm run dev -- task add "Prepare brand strategy" --project <PROJECT_ID>
+npm run dev -- task update <TASK_ID> status in_progress
 ```
+
+Projects can be created, listed, inspected, and archived. Tasks can be linked to active projects, filtered by project/status, and updated. Use `project show <PROJECT_ID>` to inspect a project and `project archive <PROJECT_ID>` to archive it without deleting linked tasks.
 
 To complete a task, copy its ID from the task list:
 

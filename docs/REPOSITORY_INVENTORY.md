@@ -39,6 +39,7 @@ src/orchestrator/planner.ts
 src/orchestrator/run-repository.ts
 src/orchestrator/step-executor.ts
 src/project/project-context.ts
+src/projects/project-repository.ts
 src/permissions/approval-service.ts
 src/permissions/execution-guard.ts
 src/permissions/permission-repository.ts
@@ -55,6 +56,7 @@ tests/memory-repository.test.ts
 tests/orchestrator-run.test.ts
 tests/orchestrator-step-executor.test.ts
 tests/orchestrator.test.ts
+tests/projects.test.ts
 tests/permissions.test.ts
 tests/project-context.test.ts
 tests/runtime-engine.test.ts

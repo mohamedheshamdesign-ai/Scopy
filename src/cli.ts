@@ -8,7 +8,8 @@ import { MemoryRepository, type MemoryType } from "./memory/memory-repository.js
 import { generateDraftPlan } from "./orchestrator/planner.js";
 import { PlanRepository } from "./orchestrator/plan-repository.js";
 import { PlanRunRepository } from "./orchestrator/run-repository.js";
-import { TaskNotFoundError, TaskRepository } from "./tasks/task-repository.js";
+import { TaskNotFoundError, TaskRepository, type TaskPriority, type TaskStatus } from "./tasks/task-repository.js";
+import { ProjectRepository } from "./projects/project-repository.js";
 import { join } from "node:path";
 import { ApprovalService } from "./permissions/approval-service.js";
 import { ExecutionGuard } from "./permissions/execution-guard.js";
@@ -28,6 +29,11 @@ Commands:
   npm run dev -- task add "Task title"
   npm run dev -- task list
   npm run dev -- task complete <task-id>
+  npm run dev -- task update <task-id> <title|description|status|priority|project> <value>
+  npm run dev -- project create "Project name" ["Description"]
+  npm run dev -- project list [--all]
+  npm run dev -- project show <project-id>
+  npm run dev -- project archive <project-id>
   npm run dev -- ai models
   npm run dev -- ai health
   npm run dev -- ai chat "Your prompt"
@@ -180,6 +186,37 @@ async function main(): Promise<void> {
       }
       if (subcommand === "list") {
         console.log(JSON.stringify(memories.list(), null, 2));
+        return;
+      }
+      printUsage();
+      process.exitCode = 1;
+      return;
+    }
+
+    if (command === "project") {
+      const projects = new ProjectRepository(database);
+      if (subcommand === "create") {
+        const [name, ...descriptionParts] = args;
+        if (!name) throw new Error('Usage: project create "Project name" ["Description"]');
+        console.log(JSON.stringify(projects.create({ name, description: descriptionParts.join(" ") }), null, 2));
+        return;
+      }
+      if (subcommand === "list") {
+        console.log(JSON.stringify(projects.list({ includeArchived: args.includes("--all") }), null, 2));
+        return;
+      }
+      if (subcommand === "show") {
+        const id = args[0];
+        if (!id) throw new Error("Usage: project show <project-id>");
+        const project = projects.getById(id);
+        if (!project) throw new Error("Project not found: " + id);
+        console.log(JSON.stringify(project, null, 2));
+        return;
+      }
+      if (subcommand === "archive") {
+        const id = args[0];
+        if (!id) throw new Error("Usage: project archive <project-id>");
+        console.log(JSON.stringify(projects.archive(id), null, 2));
         return;
       }
       printUsage();
@@ -394,24 +431,56 @@ async function main(): Promise<void> {
     const tasks = new TaskRepository(database);
 
     if (subcommand === "add") {
-      const title = args.join(" ").trim();
-      if (!title) {
-        console.error("Provide a task title.");
-        process.exitCode = 1;
-        return;
+      const projectIndex = args.indexOf("--project");
+      const projectId = projectIndex >= 0 ? args[projectIndex + 1] : undefined;
+      const title = (projectIndex >= 0 ? args.slice(0, projectIndex) : args).join(" ").trim();
+      if (!title || (projectIndex >= 0 && !projectId)) {
+        throw new Error('Usage: task add "Task title" [--project <project-id>]');
       }
-      console.log(JSON.stringify(tasks.create({ title }), null, 2));
+      console.log(JSON.stringify(tasks.create({ title, ...(projectId ? { projectId } : {}) }), null, 2));
       return;
     }
 
     if (subcommand === "list") {
-      const items = tasks.list();
+      const projectIndex = args.indexOf("--project");
+      const statusIndex = args.indexOf("--status");
+      const projectValue = projectIndex >= 0 ? args[projectIndex + 1] : undefined;
+      const statusValue = statusIndex >= 0 ? args[statusIndex + 1] : undefined;
+      const allowedStatuses: TaskStatus[] = ["open", "in_progress", "completed", "cancelled"];
+      if (projectIndex >= 0 && !projectValue) throw new Error("Provide a project ID after --project.");
+      if (statusValue && !allowedStatuses.includes(statusValue as TaskStatus)) throw new Error("Invalid task status.");
+      const items = tasks.list({
+        ...(projectValue !== undefined ? { projectId: projectValue === "none" ? null : projectValue } : {}),
+        ...(statusValue ? { status: statusValue as TaskStatus } : {}),
+      });
       if (items.length === 0) {
-        console.log("No tasks yet.");
+        console.log("No tasks found.");
       } else {
         for (const task of items) {
-          console.log(`[${task.status}] ${task.title} — ${task.id}`);
+          console.log(`[${task.status}] [${task.priority}] ${task.title} — ${task.id}${task.projectId ? " (project " + task.projectId + ")" : ""}`);
         }
+      }
+      return;
+    }
+
+    if (subcommand === "update") {
+      const [id, field, ...valueParts] = args;
+      const value = valueParts.join(" ").trim();
+      if (!id || !field || !value) throw new Error("Usage: task update <task-id> <title|description|status|priority|project> <value>");
+      if (field === "title") console.log(JSON.stringify(tasks.update(id, { title: value }), null, 2));
+      else if (field === "description") console.log(JSON.stringify(tasks.update(id, { description: value }), null, 2));
+      else if (field === "status") {
+        const allowed: TaskStatus[] = ["open", "in_progress", "completed", "cancelled"];
+        if (!allowed.includes(value as TaskStatus)) throw new Error("Invalid task status.");
+        console.log(JSON.stringify(tasks.update(id, { status: value as TaskStatus }), null, 2));
+      } else if (field === "priority") {
+        const allowed: TaskPriority[] = ["low", "normal", "high", "urgent"];
+        if (!allowed.includes(value as TaskPriority)) throw new Error("Invalid task priority.");
+        console.log(JSON.stringify(tasks.update(id, { priority: value as TaskPriority }), null, 2));
+      } else if (field === "project") {
+        console.log(JSON.stringify(tasks.update(id, { projectId: value === "none" ? null : value }), null, 2));
+      } else {
+        throw new Error("Unknown task field. Use title, description, status, priority, or project.");
       }
       return;
     }
