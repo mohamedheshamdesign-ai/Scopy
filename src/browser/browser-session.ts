@@ -1,4 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -34,10 +36,35 @@ function browserExecutable(): string | undefined {
   return candidates.find((candidate) => existsSync(candidate));
 }
 
-function validateUrl(value: string): string {
-  const url = new URL(value);
+function isPublicAddress(address: string): boolean {
+  if (isIP(address) === 4) {
+    const parts = address.split(".").map(Number);
+    const a = parts[0] ?? 0; const b = parts[1] ?? 0;
+    return !(a === 0 || a === 10 || a === 127 || a >= 224 ||
+      (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) ||
+      (a === 192 && b === 0) || (a === 198 && (b === 18 || b === 19)) ||
+      (a === 203 && b === 0));
+  }
+  const value = address.toLowerCase();
+  return !(value === "::" || value === "::1" || value.startsWith("fc") || value.startsWith("fd") ||
+    value.startsWith("fe8") || value.startsWith("fe9") || value.startsWith("fea") ||
+    value.startsWith("feb") || value.startsWith("ff") || value.startsWith("::ffff:"));
+}
+
+async function validateUrl(value: string): Promise<string> {
+  let url: URL;
+  try { url = new URL(value); } catch { throw new Error("Provide a valid public HTTP/HTTPS URL."); }
   if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) {
-    throw new Error("Browser navigation accepts only http/https URLs without embedded credentials.");
+    throw new Error("Browser navigation accepts only public HTTP/HTTPS URLs without embedded credentials.");
+  }
+  const host = url.hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) {
+    throw new Error("Browser navigation to local hostnames is blocked.");
+  }
+  const addresses = isIP(host) ? [{ address: host }] : await lookup(host, { all: true, verbatim: true });
+  if (addresses.length === 0 || addresses.some(item => !isPublicAddress(item.address))) {
+    throw new Error("Browser navigation to private or reserved network addresses is blocked.");
   }
   return url.toString();
 }
@@ -46,6 +73,7 @@ export class LocalBrowserSession {
   private process: ChildProcess | undefined;
   private socket: SocketLike | undefined;
   private target: CdpTarget | undefined;
+  private activeUrl: string | null = null;
   private nextId = 1;
   private readonly pending = new Map<number, { resolve: (value: CdpResponse) => void; reject: (error: Error) => void }>();
   private readonly port: number;
@@ -59,7 +87,7 @@ export class LocalBrowserSession {
     return {
       running: Boolean(this.process && this.process.exitCode === null),
       browser: this.process ? "isolated Chromium session" : null,
-      activeUrl: this.target?.url ?? null,
+      activeUrl: this.activeUrl,
       isolatedProfile: join(this.homeDirectory, "browser-profile"),
     };
   }
@@ -105,7 +133,7 @@ export class LocalBrowserSession {
   }
 
   async open(input: string): Promise<{ url: string; title: string; text: string }> {
-    const url = validateUrl(input);
+    const url = await validateUrl(input);
     await this.start();
     const response = await fetch("http://127.0.0.1:" + this.port + "/json/new?about:blank", {
       method: "PUT",
@@ -119,6 +147,8 @@ export class LocalBrowserSession {
     await this.connect(target.webSocketDebuggerUrl);
     await this.command("Page.enable");
     await this.command("Runtime.enable");
+    await this.command("Page.setDownloadBehavior", { behavior: "deny" });
+    this.activeUrl = url;
     await this.command("Page.navigate", { url });
     await this.waitForDocument();
     return this.read();
@@ -135,17 +165,66 @@ export class LocalBrowserSession {
     const value = result?.value;
     if (typeof value !== "object" || value === null) throw new Error("Browser page did not return readable document content.");
     const page = value as Record<string, unknown>;
+    if (typeof page.url === "string") this.activeUrl = await validateUrl(page.url);
     return {
-      url: typeof page.url === "string" ? page.url : this.target.url,
+      url: this.activeUrl ?? this.target.url,
       title: typeof page.title === "string" ? page.title : "",
       text: typeof page.text === "string" ? page.text : "",
     };
+  }
+
+  async click(selector: string): Promise<{ url: string; title: string; text: string }> {
+    this.requirePage();
+    if (!selector.trim() || selector.length > 500) throw new Error("CSS selector must contain 1–500 characters.");
+    const encoded = JSON.stringify(selector);
+    await this.command("Runtime.evaluate", {
+      expression: "(()=>{const e=document.querySelector(" + encoded + ");if(!e)throw new Error('Element not found');e.click();return true})()",
+      returnByValue: true,
+    });
+    await this.waitForDocument();
+    return this.read();
+  }
+
+  async type(selector: string, text: string): Promise<{ url: string; title: string; text: string }> {
+    this.requirePage();
+    if (!selector.trim() || selector.length > 500 || text.length > 5000) throw new Error("Selector must be 1–500 characters and text at most 5000 characters.");
+    const encodedSelector = JSON.stringify(selector);
+    const encodedText = JSON.stringify(text);
+    await this.command("Runtime.evaluate", {
+      expression: "(()=>{const e=document.querySelector(" + encodedSelector + ");if(!e)throw new Error('Element not found');e.focus();const v=" + encodedText + ";if('value' in e){const p=Object.getPrototypeOf(e);const d=Object.getOwnPropertyDescriptor(p,'value');if(d&&d.set)d.set.call(e,v);else e.value=v}else if(e.isContentEditable)e.textContent=v;else throw new Error('Target is not editable');e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+      returnByValue: true,
+    });
+    return this.read();
+  }
+
+  async keypress(key: string): Promise<{ url: string; title: string; text: string }> {
+    this.requirePage();
+    const allowed = ["Enter", "Tab", "Escape", "ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Backspace", "Delete", "Space"];
+    if (!allowed.includes(key)) throw new Error("Unsupported browser key.");
+    const normalized = key === "Space" ? " " : key;
+    await this.command("Input.dispatchKeyEvent", { type: "keyDown", key: normalized });
+    await this.command("Input.dispatchKeyEvent", { type: "keyUp", key: normalized });
+    await this.waitForDocument();
+    return this.read();
+  }
+
+  async screenshot(): Promise<{ mimeType: string; data: string }> {
+    this.requirePage();
+    const result = await this.command("Page.captureScreenshot", { format: "jpeg", quality: 60, fromSurface: true, captureBeyondViewport: false });
+    const data = result.result?.data;
+    if (typeof data !== "string" || data.length > 1_500_000) throw new Error("Browser screenshot is missing or exceeds the 1.5 MiB limit.");
+    return { mimeType: "image/jpeg", data };
+  }
+
+  private requirePage(): void {
+    if (!this.socket || !this.target) throw new Error("No managed browser page is open. Open a URL first.");
   }
 
   async close(): Promise<void> {
     this.socket?.close();
     this.socket = undefined;
     this.target = undefined;
+    this.activeUrl = null;
     if (this.process && this.process.exitCode === null) {
       const child = this.process;
       child.kill();
