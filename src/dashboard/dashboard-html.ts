@@ -1,7 +1,7 @@
 export const dashboardHtml = String.raw`<!doctype html>
 <html lang="en" dir="ltr">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#07111f"><link rel="manifest" href="/manifest.webmanifest">
 <title>Scopy — Local Workspace</title>
 <style>
 :root{color-scheme:dark;--bg:#07111f;--panel:#0d1b2c;--panel2:#10243a;--line:#1c3550;--text:#e8f0f8;--muted:#91a6ba;--blue:#3b82f6;--cyan:#5dd6e8;--green:#39c49a;--red:#f07878;--amber:#e9b95e;font-family:Inter,Segoe UI,Arial,sans-serif}
@@ -30,7 +30,7 @@ export const dashboardHtml = String.raw`<!doctype html>
  <div class="sidefoot">LOCAL-FIRST · PRIVATE BY DEFAULT<br>Execution is permission-gated.<br><span id="safetySide">Safety: strict</span></div>
 </aside>
 <main class="main">
- <header class="top"><div><div class="eyebrow">PERSONAL AI OPERATING SYSTEM</div><h1 id="pageTitle">Overview</h1></div><div class="topright"><span class="status" id="connection">● Local connection</span><button class="ghost" id="lang">العربية</button><button class="ghost" id="refresh">↻ Refresh</button></div></header>
+ <header class="top"><div><div class="eyebrow">PERSONAL AI OPERATING SYSTEM</div><h1 id="pageTitle">Overview</h1></div><div class="topright"><span class="status" id="connection">● Local connection</span><button class="ghost" id="lang">العربية</button><button class="ghost hidden" id="installApp">Install Scopy</button><button class="ghost" id="refresh">↻ Refresh</button></div></header>
  <div id="globalNotice" class="notice hidden"></div>
  <section class="section active" id="page-overview">
   <div class="grid" id="stats"></div>
@@ -88,7 +88,7 @@ let token=location.hash.startsWith("#token=")?location.hash.slice(7):"";
 if(token){history.replaceState(null,"",location.pathname);}
 const state={data:null,lang:"en"};
 const titles={overview:"Overview",chat:"AI Workspace",tasks:"Tasks",projects:"Projects",agents:"Agents",terminal:"Terminal",browser:"Browser",integrations:"Integrations",computer:"Computer",plans:"Plans & Runs",memory:"Memory",approvals:"Approvals",settings:"Settings"};
-const api=async(path,method="GET",data)=>{const r=await fetch(path,{method,headers:{"authorization":"Bearer "+token,...(data?{"content-type":"application/json"}:{})},body:data?JSON.stringify(data):undefined});const v=await r.json().catch(()=>({error:"Invalid server response"}));if(!r.ok)throw new Error(v.error||("HTTP "+r.status));return v;};
+const api=async(path,method="GET",data)=>{const headers={...(token?{"authorization":"Bearer "+token}:{}),...(data?{"content-type":"application/json"}:{})};const r=await fetch(path,{method,headers,body:data?JSON.stringify(data):undefined});const v=await r.json().catch(()=>({error:"Invalid server response"}));if(!r.ok)throw new Error(v.error||("HTTP "+r.status));return v;};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const short=s=>String(s||"").length>110?String(s).slice(0,107)+"…":String(s||"");
 const item=(title,sub,badge,actions)=>'<div class="item"><div style="min-width:0"><strong>'+esc(title)+'</strong><p>'+esc(sub)+'</p></div><div class="actions">'+(badge?'<span class="pill">'+esc(badge)+'</span>':"")+(actions||"")+'</div></div>';
@@ -243,7 +243,9 @@ if(b.dataset.mcpTools){window.selectedMcpServer=b.dataset.mcpTools;go("integrati
 if(b.dataset.mcpRemove){await api("/api/mcp/servers/"+b.dataset.mcpRemove,"DELETE");await refresh();}
 }catch(err){showNotice(err.message,true);}});
 $("lang").addEventListener("click",()=>{const ar=document.documentElement.lang!=="ar";document.documentElement.lang=ar?"ar":"en";document.documentElement.dir=ar?"rtl":"ltr";$("lang").textContent=ar?"English":"العربية";showNotice(ar?"الواجهة في وضع RTL. أسماء الأقسام والأوامر التقنية ستظل بالإنجليزية.":"Interface returned to English.");});
-if(!token){showNotice("Dashboard token is missing. Start Scopy with npm run dev -- dashboard and open the exact URL printed in PowerShell.",true);}else{refresh();}
+if(token){fetch("/api/session",{method:"POST",headers:{"authorization":"Bearer "+token}}).catch(()=>{});}refresh();
+if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").catch(()=>{});}
+let installPrompt=null;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installPrompt=e;$("installApp").classList.remove("hidden");});$("installApp").addEventListener("click",async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$("installApp").classList.add("hidden");});
 })();
 </script>
 </body></html>`;
