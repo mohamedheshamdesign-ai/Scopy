@@ -10,6 +10,7 @@ This document describes code presence, not a claim that the current local checko
 | Feature | Status | Source evidence | Test evidence / limits |
 |---|---|---|---|
 | Node.js/TypeScript CLI entry point | Implemented | `src/cli.ts`, `package.json` | CLI exposes health, task, AI, benchmark, and memory commands. |
+| Structured local logging | Implemented, bounded initial logger | `src/logging/scopy-logger.ts`, `src/cli.ts` | `tests/logger.test.ts`; JSON-lines logs are written under the Scopy home, sensitive keys and bearer/API-key patterns are redacted, strings and record counts are bounded, and one rotated log is retained. Not every subsystem emits events yet. |
 | Local application paths/config | Partial | `src/config.ts`, `src/db/database.ts` | Resolves home, database, workspace, backup, log, and temp directories under one Scopy home and creates them on database initialization. Broader typed environment validation remains open. |
 | SQLite connection and versioned migrations | Implemented | `src/db/database.ts` | Migrations v1-v8 create tasks/audit, permissions/approvals, execution/checkpoints, memory, orchestrator plans/runs, typed plan actions, and project/task relationships. |
 | Project repository | Implemented, initial lifecycle | `src/projects/project-repository.ts`, `src/db/database.ts` | `tests/projects.test.ts`; projects can be created, listed, inspected, and archived. Archived projects cannot receive new tasks; existing linked tasks remain accessible. |

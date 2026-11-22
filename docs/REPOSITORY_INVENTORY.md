@@ -34,6 +34,7 @@ src/backup/backup-service.ts
 src/cli.ts
 src/config.ts
 src/db/database.ts
+src/logging/scopy-logger.ts
 src/memory/memory-repository.ts
 src/orchestrator/action-resolver.ts
 src/orchestrator/plan-repository.ts
@@ -59,6 +60,7 @@ tests/backup.test.ts
 tests/config.test.ts
 tests/chat-context.test.ts
 tests/local-router-timeout.test.ts
+tests/logger.test.ts
 tests/memory-repository.test.ts
 tests/orchestrator-run.test.ts
 tests/orchestrator-step-executor.test.ts

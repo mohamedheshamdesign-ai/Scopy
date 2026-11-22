@@ -97,6 +97,8 @@ Do not commit directly to `main`.
 
 If Scopy exits while a plan step is running, inspect the run and only use `run recover <RUN_ID> --confirm-process-stopped` after confirming the prior process has stopped. Recovery marks the step failed; it does not assume the action had no side effects or retry it automatically.
 
+The CLI writes structured JSON logs to `logs/scopy.log`, redacts sensitive fields and common API-key patterns, and retains one rotated log. Prompts and file contents are not logged by the CLI command lifecycle.
+
 The local foundation includes task and project persistence, versioned SQLite migrations, SQLite backup creation and integrity verification, a central permission policy engine, exact-action approval records, one-time approval consumption, audit events, local AI chat, typed planning, and guarded filesystem execution. GitHub Actions validates the project on Windows and Linux for changes to `dev`.
 
 The permission engine uses **default deny**. Rules can be scoped by actor, tool, action, and target. Target patterns support an exact target, `*`, or a trailing wildcard prefix such as `E:\\Scopy\\workspace\\*`. Filesystem targets are normalized with Windows path rules and compared case-insensitively. A more specific rule takes precedence; ties resolve as deny, then approval-required, then allow.

@@ -1,4 +1,5 @@
 import { AgentRegistry, buildAgentMessages } from "./agents/agent-registry.js";
+import { ScopyLogger } from "./logging/scopy-logger.js";
 import { createLocalAiRouter } from "./ai/create-local-router.js";
 import { listLocalModels } from "./ai/local-openai-provider.js";
 import { loadConfig } from "./config.js";
@@ -77,6 +78,8 @@ async function main(): Promise<void> {
   const [command, subcommand, ...args] = process.argv.slice(2);
   const config = loadConfig();
   const database = openDatabase(config);
+  const logger = new ScopyLogger(config.logsDir);
+  logger.info("cli.command.started", { command: command ?? "unknown", subcommand: subcommand ?? null });
 
   try {
     if (command === "health") {
@@ -615,6 +618,11 @@ async function main(): Promise<void> {
     printUsage();
     process.exitCode = 1;
   } catch (error) {
+    logger.error("cli.command.failed", {
+      command: command ?? "unknown",
+      subcommand: subcommand ?? null,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+    });
     if (error instanceof TaskNotFoundError) {
       console.error(error.message);
       process.exitCode = 1;
