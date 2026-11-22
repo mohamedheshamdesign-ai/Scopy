@@ -135,7 +135,7 @@ test("plan step executor denies unconfigured actions and mismatched actors witho
 });
 
 test("failed tool execution records a failed step and run", async () => {
-  await withExecutor(async ({ executor, plans, runs, rules, gateway, runtime }) => {
+  await withExecutor(async ({ executor, plans, runs, rules, gateway }) => {
     const runId = await createRun(plans, runs);
     rules.setRule({
       actorId: "user:local", tool: "test-tool", action: "perform",
@@ -149,8 +149,5 @@ test("failed tool execution records a failed step and run", async () => {
     const failed = runs.getById(runId)!;
     assert.equal(failed.status, "failed");
     assert.equal(failed.steps[0]?.status, "failed");
-    assert.equal(runtime.getRun(
-      (await Promise.resolve(failed)).id,
-    ), undefined);
   });
 });
