@@ -236,3 +236,24 @@ test("workspace_assist routes write actions through exact approval", async () =>
     assert.equal(approvals.getById(pending.id)?.status, "consumed");
   });
 });
+
+
+test("terminal and browser actions cannot bypass explicit approval with an allow rule", async () => {
+  await withServices(({ rules, policy }) => {
+    rules.setRule({ actorId: "user:local", tool: "terminal", action: "run", effect: "allow" });
+    assert.equal(policy.evaluate({
+      actorId: "user:local", tool: "terminal", action: "run", target: ".",
+      payload: { executable: "node", args: ["--version"], timeoutMs: 5000 },
+    }).effect, "approval_required");
+
+    rules.setRule({ actorId: "user:local", tool: "browser", action: "open", effect: "allow" });
+    assert.equal(policy.evaluate({
+      actorId: "user:local", tool: "browser", action: "open", target: "https://example.com",
+    }).effect, "approval_required");
+
+    rules.setRule({ actorId: "user:local", tool: "browser", action: "open", effect: "deny" });
+    assert.equal(policy.evaluate({
+      actorId: "user:local", tool: "browser", action: "open", target: "https://example.com",
+    }).effect, "deny");
+  });
+});
