@@ -51,8 +51,14 @@ export async function runDoctor(
       checks.push({ name, status: "error", detail: "Directory check failed." });
     }
   }
-  if (!database && environment.SCOPY_LOCAL_AI_MODEL?.trim()) {
-    checks.push({ name: "local_ai", status: "warning", detail: "Local AI health check skipped because the Scopy database is unavailable." });
+  if (!database) {
+    checks.push({
+      name: "local_ai",
+      status: environment.SCOPY_LOCAL_AI_MODEL?.trim() ? "warning" : "not_configured",
+      detail: environment.SCOPY_LOCAL_AI_MODEL?.trim()
+        ? "Local AI health check skipped because the Scopy database is unavailable."
+        : "Run scripts\\connect-local-ai.ps1 in the current PowerShell session.",
+    });
   } else if (!environment.SCOPY_LOCAL_AI_MODEL?.trim()) {
     checks.push({ name: "local_ai", status: "not_configured", detail: "Run scripts\\connect-local-ai.ps1 in the current PowerShell session." });
   } else {
