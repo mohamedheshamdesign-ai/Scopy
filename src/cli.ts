@@ -7,6 +7,7 @@ import { loadProjectContext } from "./project/project-context.js";
 import { MemoryRepository, type MemoryType } from "./memory/memory-repository.js";
 import { generateDraftPlan } from "./orchestrator/planner.js";
 import { PlanRepository } from "./orchestrator/plan-repository.js";
+import { PlanRunRepository } from "./orchestrator/run-repository.js";
 import { TaskNotFoundError, TaskRepository } from "./tasks/task-repository.js";
 
 function printUsage(): void {
@@ -30,6 +31,14 @@ Commands:
   npm run dev -- plan show <plan-id>
   npm run dev -- plan approve <plan-id>
   npm run dev -- plan reject <plan-id>
+  npm run dev -- run start <approved-plan-id>
+  npm run dev -- run list
+  npm run dev -- run show <run-id>
+  npm run dev -- run step start <run-id> <step-id>
+  npm run dev -- run step complete <run-id> <step-id> ["result"]
+  npm run dev -- run step fail <run-id> <step-id> "reason"
+  npm run dev -- run resume <run-id>
+  npm run dev -- run cancel <run-id>
 `);
 }
 
@@ -201,6 +210,69 @@ async function main(): Promise<void> {
             ? "Plan approved for review purposes only. No tools or actions have been executed."
             : "Plan rejected. No tools or actions have been executed.",
         }, null, 2));
+        return;
+      }
+      printUsage();
+      process.exitCode = 1;
+      return;
+    }
+
+    if (command === "run") {
+      const runs = new PlanRunRepository(database);
+      if (subcommand === "start") {
+        const planId = args[0];
+        if (!planId) throw new Error("Usage: run start <approved-plan-id>");
+        const run = runs.start(planId, "user:local");
+        console.log(JSON.stringify({
+          ...run,
+          notice: "Run created. Steps are tracked manually; no tools or external actions are executed.",
+        }, null, 2));
+        return;
+      }
+      if (subcommand === "list") {
+        console.log(JSON.stringify(runs.list(), null, 2));
+        return;
+      }
+      if (subcommand === "show") {
+        const id = args[0];
+        if (!id) throw new Error("Usage: run show <run-id>");
+        const run = runs.getById(id);
+        if (!run) throw new Error(`Plan run not found: ${id}`);
+        console.log(JSON.stringify({
+          ...run,
+          latestCheckpoint: runs.getLatestCheckpoint(id),
+          notice: "Step transitions are bookkeeping only; no tools or external actions are executed.",
+        }, null, 2));
+        return;
+      }
+      if (subcommand === "resume") {
+        const id = args[0];
+        if (!id) throw new Error("Usage: run resume <run-id>");
+        console.log(JSON.stringify(runs.resume(id), null, 2));
+        return;
+      }
+      if (subcommand === "cancel") {
+        const id = args[0];
+        if (!id) throw new Error("Usage: run cancel <run-id>");
+        console.log(JSON.stringify(runs.cancel(id), null, 2));
+        return;
+      }
+      if (subcommand === "step") {
+        const [operation, runId, stepId, ...details] = args;
+        if (!operation || !runId || !stepId) {
+          throw new Error('Usage: run step <start|complete|fail> <run-id> <step-id> ["result or reason"]');
+        }
+        let run;
+        if (operation === "start") {
+          run = runs.startStep(runId, stepId);
+        } else if (operation === "complete") {
+          run = runs.completeStep(runId, stepId, details.join(" "));
+        } else if (operation === "fail") {
+          run = runs.failStep(runId, stepId, details.join(" "));
+        } else {
+          throw new Error("Unknown run step operation. Use start, complete, or fail.");
+        }
+        console.log(JSON.stringify(run, null, 2));
         return;
       }
       printUsage();
