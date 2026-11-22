@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { mock } from "node:test";
 import test from "node:test";
 import { LocalOpenAIProvider } from "../src/ai/local-openai-provider.js";
 import { ProviderRouter } from "../src/ai/provider-router.js";
@@ -22,7 +21,10 @@ test("local provider refuses non-loopback and non-HTTP endpoints", () => {
 });
 
 test("local provider health and chat use OpenAI-compatible endpoints", async () => {
-  const fetchMock = mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    calls++;
     const url = String(input);
     if (url.endsWith("/models")) {
       return new Response(JSON.stringify({ data: [{ id: "qwen-local" }] }), { status: 200 });
@@ -32,7 +34,7 @@ test("local provider health and chat use OpenAI-compatible endpoints", async () 
       choices: [{ message: { content: "Hello from Scopy local model." } }],
       usage: { prompt_tokens: 12, completion_tokens: 8 },
     }), { status: 200 });
-  });
+  }) as typeof fetch;
   try {
     const provider = new LocalOpenAIProvider({
       baseUrl: "http://127.0.0.1:8080/v1",
@@ -45,9 +47,9 @@ test("local provider health and chat use OpenAI-compatible endpoints", async () 
     assert.equal(result.text, "Hello from Scopy local model.");
     assert.equal(result.providerId, "local-openai-compatible");
     assert.equal(result.inputTokens, 12);
-    assert.equal(fetchMock.mock.callCount(), 2);
+    assert.equal(calls, 2);
   } finally {
-    fetchMock.mock.restore();
+    globalThis.fetch = originalFetch;
   }
 });
 
