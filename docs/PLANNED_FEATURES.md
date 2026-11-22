@@ -36,7 +36,8 @@
 ## Phase 6 — Workspace and integrations
 - Native desktop packaging and lifecycle.
 - Expand dashboard provider/permission settings and local workspace views.
-- MCP server configuration and opt-in scoped external integrations, with credential isolation.
+- Built-in OAuth flows and remote HTTP MCP transports.
+- Provider-specific integration UX, persistent server lifecycle/health management, and more granular tool capability scopes.
 - Full application upgrade workflow. Backup creation, verification, and guarded restore are implemented.
 
 ## How to update this file
