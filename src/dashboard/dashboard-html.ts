@@ -21,6 +21,7 @@ export const dashboardHtml = String.raw`<!doctype html>
   <button data-page="terminal">⌁ &nbsp; Terminal</button>
   <button data-page="browser">◎ &nbsp; Browser</button>
   <button data-page="integrations">⌘ &nbsp; Integrations</button>
+  <button data-page="computer">▣ &nbsp; Computer</button>
   <button data-page="plans">⌘ &nbsp; Plans & Runs</button>
   <button data-page="memory">◌ &nbsp; Memory</button>
   <button data-page="approvals">◇ &nbsp; Approvals</button>
@@ -62,6 +63,17 @@ export const dashboardHtml = String.raw`<!doctype html>
  <div id="mcpState" class="detail" style="margin-top:12px"></div><pre id="mcpOutput" style="white-space:pre-wrap;max-height:320px;overflow:auto;background:#06111d;padding:12px;border-radius:9px;font-size:11px"></pre>
  </div>
 </section>
+<section class="section" id="page-computer">
+ <div class="panel"><div class="panelhead"><h2>Windows computer control</h2><span class="pill warn">APPROVAL REQUIRED</span></div>
+ <div class="notice">Uses Windows UI Automation through a fixed PowerShell script. Scopy can inspect a window's controls, invoke a uniquely matched control, or set a value. Every action requires approval. It does not use coordinates, capture screenshots, or send global keyboard shortcuts.</div>
+ <div class="form"><input id="computerWindow" class="wide" placeholder="Exact window title, e.g. Untitled - Notepad"><select id="computerAction"><option value="snapshot">Inspect controls</option><option value="invoke">Invoke control</option><option value="set_value">Set control value</option></select><input id="computerLimit" type="number" value="100" min="1" max="300" style="max-width:120px"></div>
+ <div class="form"><input id="computerAutomationId" placeholder="Automation ID (preferred)"><input id="computerName" placeholder="Or exact control name"></div>
+ <div class="form"><textarea id="computerValue" class="wide" placeholder="Value to set (set_value only)"></textarea></div>
+ <div class="actions"><button class="primary" id="computerRequest">Request exact approval</button><button id="computerExecute" disabled>Execute approved action</button></div>
+ <div id="computerState" class="detail" style="margin-top:12px"></div>
+ <pre id="computerOutput" style="white-space:pre-wrap;max-height:420px;overflow:auto;background:#06111d;padding:12px;border-radius:9px;font-size:11px"></pre>
+ </div>
+</section>
 <section class="section" id="page-agents"><div class="panel"><div class="panelhead"><h2>Agent registry</h2><span class="pill warn">ADVISORY MODE</span></div><p class="detail">Each specialist has a defined role. Tool execution remains centralized in Scopy's permission and approval layer.</p><div class="list" id="agentList"></div></div></section>
  <section class="section" id="page-plans"><div class="panel"><div class="panelhead"><h2>Plan a goal</h2></div><div class="form"><input id="planGoal" placeholder="Describe an outcome for Scopy to plan"><button class="primary" id="createPlan">Generate plan</button></div><div class="list" id="planList"></div></div><div class="panel"><div class="panelhead"><h2>Execution runs</h2></div><div class="list" id="runList"></div></div></section>
  <section class="section" id="page-memory"><div class="panel"><div class="panelhead"><h2>Personal memory</h2><span class="muted small">User-confirmed records</span></div><div class="form"><select id="memoryType"><option>preference</option><option>semantic</option><option>project</option><option>procedural</option><option>episodic</option><option>working</option></select><input id="memoryScope" placeholder="Scope (global by default)"><input id="memoryContent" placeholder="What should Scopy remember?"><button class="primary" id="addMemory">Save memory</button></div><div class="list" id="memoryList"></div></div></section>
@@ -75,7 +87,7 @@ const $=id=>document.getElementById(id);
 let token=location.hash.startsWith("#token=")?location.hash.slice(7):"";
 if(token){history.replaceState(null,"",location.pathname);}
 const state={data:null,lang:"en"};
-const titles={overview:"Overview",chat:"AI Workspace",tasks:"Tasks",projects:"Projects",agents:"Agents",terminal:"Terminal",browser:"Browser",integrations:"Integrations",plans:"Plans & Runs",memory:"Memory",approvals:"Approvals",settings:"Settings"};
+const titles={overview:"Overview",chat:"AI Workspace",tasks:"Tasks",projects:"Projects",agents:"Agents",terminal:"Terminal",browser:"Browser",integrations:"Integrations",computer:"Computer",plans:"Plans & Runs",memory:"Memory",approvals:"Approvals",settings:"Settings"};
 const api=async(path,method="GET",data)=>{const r=await fetch(path,{method,headers:{"authorization":"Bearer "+token,...(data?{"content-type":"application/json"}:{})},body:data?JSON.stringify(data):undefined});const v=await r.json().catch(()=>({error:"Invalid server response"}));if(!r.ok)throw new Error(v.error||("HTTP "+r.status));return v;};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const short=s=>String(s||"").length>110?String(s).slice(0,107)+"…":String(s||"");
@@ -123,6 +135,37 @@ function terminalPayload(){
  return {executable:$("terminalExe").value,args,workingDirectory:$("terminalCwd").value||".",timeoutMs:Number($("terminalTimeout").value||30000)};
 }
 
+
+
+let pendingComputer=null;
+$("computerRequest").addEventListener("click",async()=>{
+ try{
+  const computerAction=$("computerAction").value;
+  const windowTitle=$("computerWindow").value;
+  let payload={};
+  if(computerAction==="snapshot")payload={limit:Number($("computerLimit").value||100)};
+  else{
+   const automationId=$("computerAutomationId").value.trim();
+   const name=$("computerName").value.trim();
+   if(Boolean(automationId)===Boolean(name))throw new Error("Provide exactly one Automation ID or exact control name.");
+   payload=automationId?{automationId}:{name};
+   if(computerAction==="set_value")payload.value=$("computerValue").value;
+  }
+  pendingComputer={computerAction,windowTitle,payload};
+  const approval=await api("/api/computer/requests","POST",{computerAction,windowTitle,...payload});
+  pendingComputer.requestId=approval.id;
+  $("computerState").textContent="Approval request "+approval.id+" created. Inspect the exact window and control details in Approvals.";
+  $("computerExecute").disabled=true;await refresh();
+ }catch(e){showNotice(e.message,true);}
+});
+$("computerExecute").addEventListener("click",async()=>{
+ if(!pendingComputer||!pendingComputer.approvalId){showNotice("Approve the exact computer action first.",true);return;}
+ try{
+  $("computerExecute").disabled=true;$("computerState").textContent="Executing approved Windows UI Automation action…";
+  const r=await api("/api/computer/execute","POST",{...pendingComputer,approvalId:pendingComputer.approvalId});
+  $("computerOutput").textContent=JSON.stringify(r.output,null,2);$("computerState").textContent="Completed in "+r.durationMs+" ms.";pendingComputer=null;await refresh();
+ }catch(e){$("computerState").textContent=e.message;showNotice(e.message,true);}finally{$("computerExecute").disabled=true;}
+});
 
 let pendingMcp=null;
 let availableMcpTools=[];
