@@ -24,7 +24,8 @@ function withServices(run: (services: {
   const policy = new PolicyEngine(rules);
   const approvals = new ApprovalService(database, policy);
   const guard = new ExecutionGuard(database, policy, approvals);
-  return Promise.resolve(run({ database, rules, policy, approvals, guard }))
+  return Promise.resolve()
+    .then(() => run({ database, rules, policy, approvals, guard }))
     .finally(() => {
       database.close();
       rmSync(homeDir, { recursive: true, force: true });
@@ -79,6 +80,7 @@ test("approval is required, bound to exact input, and consumed once", async () =
 
     const pending = approvals.request(sensitiveAction);
     assert.equal(pending.status, "pending");
+    assert.deepEqual(pending.payload, { text: "Approved copy" });
     assert.equal(approvals.listPending().length, 1);
     approvals.approve(pending.id, "owner");
     assert.equal(approvals.getById(pending.id)?.status, "approved");
