@@ -59,7 +59,7 @@ function mapApproval(row: ApprovalRow): ApprovalRequest {
     tool: row.tool_name,
     action: row.action_name,
     target: row.target,
-    payload: JSON.parse(row.action_json) as { payload: Record<string, unknown> }.payload,
+    payload: (JSON.parse(row.action_json) as { payload: Record<string, unknown> }).payload,
     actionHash: row.action_hash,
     status: row.status,
     requestedAt: row.requested_at,
