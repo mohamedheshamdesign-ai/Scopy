@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { LocalOpenAIProvider } from "../src/ai/local-openai-provider.js";
+import { LocalOpenAIProvider, listLocalModels } from "../src/ai/local-openai-provider.js";
 import { ProviderRouter } from "../src/ai/provider-router.js";
 import type { ModelProvider } from "../src/ai/types.js";
 import { loadConfig } from "../src/config.js";
@@ -47,7 +47,27 @@ test("local provider health and chat use OpenAI-compatible endpoints", async () 
     assert.equal(result.text, "Hello from Scopy local model.");
     assert.equal(result.providerId, "local-openai-compatible");
     assert.equal(result.inputTokens, 12);
+    assert.equal(result.outputTokens, 8);
     assert.equal(calls, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("local model listing returns exact server model IDs and rejects remote endpoints", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    data: [{ id: "qwen3-coder-local" }, { id: "another-local-model" }],
+  }), { status: 200 })) as typeof fetch;
+  try {
+    assert.deepEqual(
+      await listLocalModels("http://127.0.0.1:8080/v1"),
+      ["qwen3-coder-local", "another-local-model"],
+    );
+    await assert.rejects(
+      listLocalModels("https://models.example.com/v1"),
+      /localhost or a loopback IP/,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
