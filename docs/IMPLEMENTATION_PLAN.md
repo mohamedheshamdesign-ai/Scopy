@@ -94,7 +94,8 @@ Build small, testable vertical slices. Every consequential action must pass the 
 1. [ ] Native desktop packaging and lifecycle. A local browser-served dashboard now provides initial workspace views.
 2. [x] Initial project/task/run/memory/approval/permission/audit dashboard views.
 3. [ ] Provider and permission settings UI.
-4. [ ] External integrations, each opt-in and scoped.
+4. [x] Initial local stdio MCP integration bridge with explicit environment-variable pass-through and exact approval for each tool call.
+   [ ] Built-in OAuth flows, remote HTTP MCP transports, persistent MCP server lifecycle, and provider-specific integration UX.
 5. [x] Backup restore with schema-version validation, staged-file verification, atomic replacement, and rollback protection. A broader application upgrade workflow remains open.
 
 **Acceptance:** projects and agent work can be managed and reviewed from one local interface.
