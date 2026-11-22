@@ -53,14 +53,18 @@ Implement only the contracts and infrastructure required for a first working ver
 
 ## Phase 3 — AI routing and memory
 
-1. Provider adapter interface.
-2. Local provider integration first.
-3. Explicit cloud-provider opt-in and egress audit.
-4. Model capability registry and health checks.
-5. Working and project memory with provenance.
-6. Retrieval evaluation set before adding embeddings.
+1. [x] Provider adapter interface and capability declarations.
+2. [x] Loopback-only OpenAI-compatible local provider with health and chat requests.
+3. [x] Explicit per-request cloud egress opt-in enforcement and audit events; no cloud provider enabled by default.
+4. [x] Provider registry, model validation, and health checks.
+5. [x] SQLite memory records for working, episodic, semantic, project, preference, and procedural types with provenance, confidence, scope, and expiry.
+6. [x] Bounded lexical retrieval and deterministic retrieval tests before adding embeddings.
+7. [ ] Automatic memory extraction/consolidation and richer retrieval evaluation.
+8. [ ] Optional cloud provider adapters, streaming, and tool calling only after explicit policy and data-boundary review.
 
-**Acceptance:** route a task to a configured local model; handle provider unavailable state; no silent cloud fallback; memory results expose source and confidence.
+**Current limits:** local provider is non-streaming and chat-only. It does not implement tool calls or vision. Memory search is lexical, not embedding-based. Provider failover is intentionally absent: a local provider failure never silently routes private prompts to cloud.
+
+**Acceptance:** route a prompt to a configured local model; handle provider unavailable state; reject non-loopback endpoints; no silent cloud fallback; memory results expose source, scope, and confidence; expiry/archive filters work.
 
 ## Phase 4 — Orchestration and specialist agents
 
