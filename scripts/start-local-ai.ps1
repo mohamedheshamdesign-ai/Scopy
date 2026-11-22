@@ -96,6 +96,11 @@ $ServerArgs = @(
 )
 
 $HelpText = (& $ServerExe --help 2>&1 | Out-String)
+foreach ($RequiredFlag in @("--device", "--fit-target")) {
+    if ($HelpText -notmatch [regex]::Escape($RequiredFlag)) {
+        throw "This llama.cpp build does not expose required option $RequiredFlag. Do not launch with an unverified profile."
+    }
+}
 if ($HelpText -match "--metrics") {
     $ServerArgs += "--metrics"
 }
