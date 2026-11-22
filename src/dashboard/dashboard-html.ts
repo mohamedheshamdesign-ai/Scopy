@@ -243,7 +243,7 @@ if(b.dataset.mcpTools){window.selectedMcpServer=b.dataset.mcpTools;go("integrati
 if(b.dataset.mcpRemove){await api("/api/mcp/servers/"+b.dataset.mcpRemove,"DELETE");await refresh();}
 }catch(err){showNotice(err.message,true);}});
 $("lang").addEventListener("click",()=>{const ar=document.documentElement.lang!=="ar";document.documentElement.lang=ar?"ar":"en";document.documentElement.dir=ar?"rtl":"ltr";$("lang").textContent=ar?"English":"العربية";showNotice(ar?"الواجهة في وضع RTL. أسماء الأقسام والأوامر التقنية ستظل بالإنجليزية.":"Interface returned to English.");});
-if(token){fetch("/api/session",{method:"POST",headers:{"authorization":"Bearer "+token}}).catch(()=>{});}refresh();
+if(token){const bootstrapToken=token;fetch("/api/session",{method:"POST",headers:{"authorization":"Bearer "+bootstrapToken}}).then(r=>{if(r.ok)token="";}).catch(()=>{});}refresh();
 if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").catch(()=>{});}
 let installPrompt=null;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installPrompt=e;$("installApp").classList.remove("hidden");});$("installApp").addEventListener("click",async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$("installApp").classList.add("hidden");});
 })();
