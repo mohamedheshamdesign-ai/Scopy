@@ -51,6 +51,7 @@ Commands:
   npm run dev -- agent list
   npm run dev -- agent show <agent-id>
   npm run dev -- agent run <agent-id> "Your prompt"
+  npm run dev -- agent plan <agent-id> "Goal to plan"
   npm run dev -- memory add <type> <scope> "Memory content"
   npm run dev -- memory search "Search query"
   npm run dev -- memory list
@@ -210,12 +211,26 @@ async function main(): Promise<void> {
         return;
       }
       const agentId = args[0];
-      if (!agentId) throw new Error("Usage: agent <list|show|run> <agent-id> [prompt]");
+      if (!agentId) throw new Error("Usage: agent <list|show|run|plan> <agent-id> [prompt]");
       const profile = registry.get(agentId);
       if (subcommand === "show") {
         console.log(JSON.stringify(profile, null, 2));
         return;
       }
+      if (subcommand === "plan") {
+        const goal = args.slice(1).join(" ").trim();
+        if (!goal) throw new Error('Usage: agent plan <agent-id> "Goal to plan"');
+        const router = createLocalAiRouter(database);
+        const provider = router.list()[0];
+        if (!provider) throw new Error("No AI provider is configured.");
+        const plan = await generateDraftPlan(router, provider.id, new PlanRepository(database), goal, profile.systemPrompt);
+        console.log(JSON.stringify({
+          ...plan,
+          notice: "This is an unapproved draft. Review it with plan show, then explicitly approve it before starting a run.",
+        }, null, 2));
+        return;
+      }
+
       if (subcommand === "run") {
         const prompt = args.slice(1).join(" ").trim();
         if (!prompt) throw new Error('Usage: agent run <agent-id> "Your prompt"');

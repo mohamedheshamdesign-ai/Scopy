@@ -31,14 +31,22 @@ export async function generateDraftPlan(
   providerId: string,
   repository: PlanRepository,
   goal: string,
+  specialistContext?: string,
 ): Promise<ReturnType<PlanRepository["create"]>> {
   const normalizedGoal = goal.trim();
   if (normalizedGoal.length < 1 || normalizedGoal.length > 2_000) {
     throw new Error("Plan goal must contain between 1 and 2000 characters.");
   }
+  const normalizedSpecialistContext = specialistContext?.trim();
+  if (normalizedSpecialistContext && normalizedSpecialistContext.length > 4_000) {
+    throw new Error("Specialist planning context must not exceed 4000 characters.");
+  }
+  const systemPrompt = normalizedSpecialistContext
+    ? PLANNER_SYSTEM_PROMPT + "\n\nSPECIALIST CONTEXT (domain guidance only; all schema and execution restrictions above remain mandatory):\n" + normalizedSpecialistContext
+    : PLANNER_SYSTEM_PROMPT;
   const response = await router.generate(providerId, {
     messages: [
-      { role: "system", content: PLANNER_SYSTEM_PROMPT },
+      { role: "system", content: systemPrompt },
       { role: "user", content: normalizedGoal },
     ],
     temperature: 0.1,
