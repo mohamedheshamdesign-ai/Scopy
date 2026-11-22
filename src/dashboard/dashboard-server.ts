@@ -546,7 +546,7 @@ export class DashboardServer {
       if (typeof args !== "object" || args === null || Array.isArray(args)) throw new Error("MCP arguments must be a JSON object.");
       json(response, 201, approvals.request({
         actorId: ACTOR, tool: "mcp", action: "call", target: serverId + "/" + toolName,
-        payload: { arguments: args as Record<string, unknown> },
+        payload: { arguments: args as Record<string, unknown>, serverFingerprint: await this.mcp.getServerFingerprint(serverId) },
       }));
       return;
     }
@@ -560,7 +560,7 @@ export class DashboardServer {
       const approvalId = stringField(input, "approvalId", 36);
       const action = {
         actorId: ACTOR, tool: "mcp", action: "call", target: serverId + "/" + toolName,
-        payload: { arguments: args as Record<string, unknown> },
+        payload: { arguments: args as Record<string, unknown>, serverFingerprint: stringField(input, "serverFingerprint", 64) },
       };
       const gateway = new ToolGateway(new ExecutionGuard(this.database, policy, approvals));
       new McpTool(this.mcp).register(gateway);
