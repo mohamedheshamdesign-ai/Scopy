@@ -37,7 +37,7 @@ From the repository root in PowerShell, run the one-command verification script:
 .\scripts\verify-scopy.ps1
 ```
 
-The script checks Node.js 24+, installs dependencies with npm, runs typecheck/build/tests through `npm run check`, and finishes with a read-only `doctor` check. Use `-SkipInstall` when dependencies are already installed. It does not delete or reset local data.
+The script checks Node.js 24+, installs dependencies with npm, runs typecheck/build/tests through `npm run check`, initializes the local database with `health` if needed, and finishes with a read-only `doctor` check. Use `-SkipInstall` when dependencies are already installed. It does not delete or reset local data.
 
 Set `SCOPY_WORKSPACE_DIR` in the current PowerShell session when Scopy should operate on a specific project folder instead of the default `workspace` directory. The SQLite database, logs, backups, and other Scopy data remain under `SCOPY_HOME`.
 

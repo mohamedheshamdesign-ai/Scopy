@@ -39,6 +39,7 @@ if (-not $SkipInstall) {
 }
 
 Invoke-CheckedNativeCommand -Executable "npm" -Arguments @("run", "check")
+Invoke-CheckedNativeCommand -Executable "npm" -Arguments @("run", "dev", "--", "health")
 Invoke-CheckedNativeCommand -Executable "npm" -Arguments @("run", "dev", "--", "doctor")
 
 Write-Host "Scopy verification completed successfully." -ForegroundColor Green
