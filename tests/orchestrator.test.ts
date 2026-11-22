@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { ProviderRouter } from "../src/ai/provider-router.js";
+import type { ModelProvider } from "../src/ai/types.js";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,6 +9,7 @@ import { loadConfig } from "../src/config.js";
 import { openDatabase } from "../src/db/database.js";
 import { parsePlannerResponse, validateGeneratedPlan } from "../src/orchestrator/plan.js";
 import { PlanNotFoundError, PlanRepository } from "../src/orchestrator/plan-repository.js";
+import { generateDraftPlan } from "../src/orchestrator/planner.js";
 
 const validDraft = {
   summary: "Prepare and verify a safe local backup.",
@@ -143,6 +146,36 @@ test("typed filesystem actions are validated and persist with the plan", async (
       }],
     });
     assert.deepEqual(rootListing.steps[0]?.action, { tool: "filesystem", action: "list", target: "." });
+  } finally {
+    database.close();
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("specialist-guided planning adds domain context but still creates an unapproved draft", async () => {
+  const home = await mkdtemp(join(tmpdir(), "scopy-specialist-plan-test-"));
+  const database = openDatabase(loadConfig(home, {}));
+  let capturedSystemPrompt = "";
+  const provider: ModelProvider = {
+    descriptor: {
+      id: "test-local", label: "Test local provider", dataBoundary: "local", models: ["test-model"],
+      capabilities: { chat: true, streaming: false, tools: false, vision: false, maxContextTokens: 2048 },
+    },
+    async health() { return { healthy: true, checkedAt: new Date().toISOString(), detail: "test" }; },
+    async generate(request) {
+      capturedSystemPrompt = request.messages[0]?.content ?? "";
+      return { providerId: "test-local", model: "test-model", text: JSON.stringify(validDraft), durationMs: 1 };
+    },
+  };
+  try {
+    const router = new ProviderRouter(database);
+    router.register(provider);
+    const repository = new PlanRepository(database);
+    const plan = await generateDraftPlan(router, "test-local", repository, "Plan a brand refresh", "Act as a senior brand designer. Focus on positioning and identity systems.");
+    assert.equal(plan.status, "draft");
+    assert.match(capturedSystemPrompt, /SPECIALIST CONTEXT/);
+    assert.match(capturedSystemPrompt, /senior brand designer/);
+    assert.match(capturedSystemPrompt, /Never include shell commands/);
   } finally {
     database.close();
     await rm(home, { recursive: true, force: true });
