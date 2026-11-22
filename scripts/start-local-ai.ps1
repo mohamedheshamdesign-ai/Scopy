@@ -33,6 +33,25 @@ if ($Model.Length -lt 15GB) {
     throw "The cached GGUF is unexpectedly small ($([math]::Round($Model.Length / 1GB, 2)) GiB). Refusing to start it."
 }
 
+$SystemMemory = Get-CimInstance Win32_OperatingSystem
+$FreeRamGiB = [math]::Round($SystemMemory.FreePhysicalMemory / 1MB, 2)
+Write-Host "Free physical RAM before model load: $FreeRamGiB GiB"
+if ($FreeRamGiB -lt 6) {
+    throw "Only $FreeRamGiB GiB RAM is free. Close memory-heavy applications and retry; the model will not be loaded."
+}
+
+$DeviceOutput = (& $ServerExe --list-devices 2>&1 | Out-String)
+$NvidiaDeviceMatch = [regex]::Match($DeviceOutput, "Vulkan0:.*?\((\d+)\s+MiB,\s*(\d+)\s+MiB free\)")
+if (-not $NvidiaDeviceMatch.Success) {
+    throw "Could not verify free VRAM for Vulkan0. Device output: $DeviceOutput"
+}
+$TotalVramMiB = [int]$NvidiaDeviceMatch.Groups[1].Value
+$FreeVramMiB = [int]$NvidiaDeviceMatch.Groups[2].Value
+Write-Host "Vulkan0 VRAM: $FreeVramMiB MiB free of $TotalVramMiB MiB"
+if ($FreeVramMiB -lt 2048) {
+    throw "Only $FreeVramMiB MiB VRAM is free. Close GPU-heavy applications and retry; the model will not be loaded."
+}
+
 $Listener = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
 if ($Listener) {
     $OwnerIds = @($Listener | Select-Object -ExpandProperty OwningProcess -Unique)
