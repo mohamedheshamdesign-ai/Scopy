@@ -89,7 +89,7 @@ export function validateGeneratedPlan(value: unknown): GeneratedPlanDraft {
     if (new Set(dependsOn).size !== dependsOn.length) {
       throw new Error(`Plan step ${id} has duplicate dependencies.`);
     }
-    const base = {
+    const base: Omit<PlanStepDraft, "action"> = {
       id,
       title: boundedString(rawStep.title, `step ${id} title`, 160),
       description: boundedString(rawStep.description, `step ${id} description`, 2_000),
