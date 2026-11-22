@@ -41,6 +41,18 @@ The script checks Node.js 24+, installs dependencies with npm, runs typecheck/bu
 
 Set `SCOPY_WORKSPACE_DIR` in the current PowerShell session when Scopy should operate on a specific project folder instead of the default `workspace` directory. Set `SCOPY_SAFETY_PROFILE=workspace_assist` to allow workspace reads/listings and require approval for writes/creating directories; the default `strict` profile denies actions without explicit permission rules. This built-in profile applies only to `user:local` and never grants terminal or other tool access. Point `SCOPY_WORKSPACE_DIR` only at a dedicated project folder: `workspace_assist` permits reading and listing every file inside that folder, so do not use a drive root, your home directory, Scopy's secrets/data folders, or a directory containing unrelated private files. The SQLite database, logs, backups, and other Scopy data remain under `SCOPY_HOME`.
 
+## Local workspace app
+
+Start the local dashboard from the repository root:
+
+```powershell
+npm run dev -- app start
+```
+
+Open the printed `http://127.0.0.1:4317` address. Keep the terminal open while using the app. The server binds only to loopback, issues a one-time in-memory session token, rejects cross-origin requests, and does not expose a remote network listener. It uses the same local SQLite database and configured Scopy workspace as the CLI.
+
+The dashboard currently provides task/project/memory views, local-model chat with the built-in specialist profiles, sequential multi-specialist analysis, pending approval review, and API-backed plan/run controls. The initial app does not provide unrestricted desktop control, browser automation, arbitrary terminal execution, or third-party account integrations; those require separate adapters and security review.
+
 ## First commands
 
 Run the development CLI:
