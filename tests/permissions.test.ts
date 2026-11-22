@@ -257,3 +257,19 @@ test("terminal and browser actions cannot bypass explicit approval with an allow
     }).effect, "deny");
   });
 });
+
+
+test("Windows computer actions always require exact approval even when an allow rule exists", async () => {
+  await withServices(({ rules, policy }) => {
+    rules.setRule({ actorId: "user:local", tool: "computer", action: "invoke", effect: "allow" });
+    assert.equal(policy.evaluate({
+      actorId: "user:local", tool: "computer", action: "invoke",
+      target: "Untitled - Notepad", payload: { automationId: "ButtonSave" },
+    }).effect, "approval_required");
+    rules.setRule({ actorId: "user:local", tool: "computer", action: "invoke", effect: "deny" });
+    assert.equal(policy.evaluate({
+      actorId: "user:local", tool: "computer", action: "invoke",
+      target: "Untitled - Notepad", payload: { automationId: "ButtonSave" },
+    }).effect, "deny");
+  });
+});
