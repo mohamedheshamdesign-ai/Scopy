@@ -27,5 +27,10 @@ jobs:
           node-version: 24
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Typecheck, build, and test
+      - name: Typecheck, build, test, and doctor (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\scripts\verify-scopy.ps1 -SkipInstall
+      - name: Typecheck, build, and test (Linux)
+        if: runner.os == 'Linux'
         run: npm run check
