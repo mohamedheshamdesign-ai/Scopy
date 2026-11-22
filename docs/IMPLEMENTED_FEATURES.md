@@ -25,7 +25,7 @@ This document describes code presence, not a claim that the current local checko
 | Configurable local generation timeout | Implemented | `src/ai/create-local-router.ts` | `tests/local-router-timeout.test.ts`; default is 600,000 ms, bounded by validation. |
 | SQLite-backed typed memory records and lexical retrieval | Implemented, limited | `src/memory/memory-repository.ts`, `src/db/database.ts` | `tests/memory-repository.test.ts`; retrieval is bounded lexical matching, not embeddings/vector search. |
 | Windows local model launcher, connector, diagnostics | Implemented | `scripts/start-local-ai.ps1`, `scripts/connect-local-ai.ps1`, `scripts/inspect-local-ai.ps1` | Device-specific performance measurements and tuning A/B tests are not automatically proven by script presence. |
-| CLI chat project-context injection | Implemented, limited | `src/ai/chat-context.ts`, `src/cli.ts` | `tests/chat-context.test.ts`; before this inventory update, the CLI supplied architecture and implementation-plan documents. |
+| CLI chat project-context injection with evidence rules | Implemented, limited | `src/ai/chat-context.ts`, `src/cli.ts` | `tests/chat-context.test.ts`; loads the repository inventory, implemented/planned feature records, architecture, and implementation plan. Context is capped at 24,000 characters. |
 
 ## Not implemented or not evidenced by the current tracked source tree
 
