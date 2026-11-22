@@ -121,7 +121,8 @@ The CLI reports prompt/completion tokens when the server returns usage metadata,
 For server-side telemetry, the launcher enables /metrics when the installed build exposes that option:
 
 ~~~
-(Invoke-WebRequest "http://127.0.0.1:8080/metrics").Content | Select-String "predicted_tokens_seconds|prompt_tokens_seconds|spec_decode"
+$Headers = @{ Authorization = "Bearer " + $env:SCOPY_LOCAL_AI_API_KEY }
+(Invoke-WebRequest "http://127.0.0.1:8080/metrics" -Headers $Headers).Content | Select-String "predicted_tokens_seconds|prompt_tokens_seconds|spec_decode"
 ~~~
 
 Use Task Manager > Performance > GPU or nvidia-smi to record VRAM, and the diagnostic script to record RAM/process memory.
