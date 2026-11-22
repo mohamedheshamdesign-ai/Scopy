@@ -13,6 +13,7 @@ export interface LocalOpenAIProviderOptions {
   readonly model: string;
   readonly apiKey?: string;
   readonly timeoutMs?: number;
+  readonly maxContextTokens?: number;
 }
 
 function assertLoopbackUrl(input: string): URL {
@@ -25,6 +26,30 @@ function assertLoopbackUrl(input: string): URL {
   return url;
 }
 
+function normalizedBaseUrl(input: string): string {
+  return assertLoopbackUrl(input).toString().replace(/\/$/, "");
+}
+
+export async function listLocalModels(
+  baseUrl: string,
+  apiKey?: string,
+  timeoutMs = 10_000,
+): Promise<string[]> {
+  const normalized = normalizedBaseUrl(baseUrl);
+  const response = await fetch(normalized + "/models", {
+    method: "GET",
+    headers: apiKey ? { authorization: "Bearer " + apiKey } : {},
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!response.ok) {
+    throw new Error("Local model server returned HTTP " + response.status + " while listing models.");
+  }
+  const payload = await response.json() as { data?: Array<{ id?: unknown }> };
+  return (payload.data ?? [])
+    .map((item) => item.id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+}
+
 export class LocalOpenAIProvider implements ModelProvider {
   readonly descriptor: ProviderDescriptor;
   private readonly baseUrl: string;
@@ -33,14 +58,17 @@ export class LocalOpenAIProvider implements ModelProvider {
   private readonly timeoutMs: number;
 
   constructor(options: LocalOpenAIProviderOptions) {
-    const url = assertLoopbackUrl(options.baseUrl);
-    this.baseUrl = url.toString().replace(/\/$/, "");
+    this.baseUrl = normalizedBaseUrl(options.baseUrl);
     this.model = options.model.trim();
     if (!this.model) throw new Error("A local model name is required.");
     this.apiKey = options.apiKey;
     this.timeoutMs = options.timeoutMs ?? 120_000;
+    const maxContextTokens = options.maxContextTokens ?? 8_192;
     if (!Number.isInteger(this.timeoutMs) || this.timeoutMs < 1 || this.timeoutMs > 600_000) {
       throw new Error("Provider timeoutMs must be between 1 and 600000.");
+    }
+    if (!Number.isInteger(maxContextTokens) || maxContextTokens < 1 || maxContextTokens > 262_144) {
+      throw new Error("Provider maxContextTokens must be between 1 and 262144.");
     }
     this.descriptor = Object.freeze({
       id: options.id ?? "local-openai-compatible",
@@ -52,7 +80,7 @@ export class LocalOpenAIProvider implements ModelProvider {
         streaming: false,
         tools: false,
         vision: false,
-        maxContextTokens: 32_768,
+        maxContextTokens,
       },
     });
   }
@@ -60,15 +88,20 @@ export class LocalOpenAIProvider implements ModelProvider {
   async health(signal?: AbortSignal): Promise<ProviderHealth> {
     const checkedAt = new Date().toISOString();
     try {
-      const response = await fetch(`${this.baseUrl}/models`, {
-        method: "GET",
-        headers: this.headers(),
-        signal: this.signalWithTimeout(signal),
-      });
-      if (!response.ok) {
-        return { healthy: false, checkedAt, detail: `Local model server returned HTTP ${response.status}.` };
+      const models = await this.listModels(signal);
+      if (!models.includes(this.model)) {
+        return {
+          healthy: false,
+          checkedAt,
+          detail: "Local server is reachable, but configured model \"" + this.model +
+            "\" is not listed. Available models: " + (models.join(", ") || "(none)") + ".",
+        };
       }
-      return { healthy: true, checkedAt, detail: "Local model server is reachable." };
+      return {
+        healthy: true,
+        checkedAt,
+        detail: "Local model server is reachable and \"" + this.model + "\" is available.",
+      };
     } catch (error) {
       return {
         healthy: false,
@@ -78,14 +111,29 @@ export class LocalOpenAIProvider implements ModelProvider {
     }
   }
 
+  async listModels(signal?: AbortSignal): Promise<string[]> {
+    const response = await fetch(this.baseUrl + "/models", {
+      method: "GET",
+      headers: this.headers(),
+      signal: this.signalWithTimeout(signal),
+    });
+    if (!response.ok) {
+      throw new Error("Local model server returned HTTP " + response.status + " while listing models.");
+    }
+    const payload = await response.json() as { data?: Array<{ id?: unknown }> };
+    return (payload.data ?? [])
+      .map((item) => item.id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+  }
+
   async generate(request: GenerateRequest): Promise<GenerateResponse> {
     if (request.messages.length === 0) throw new Error("At least one chat message is required.");
     const model = request.model ?? this.model;
     if (!this.descriptor.models.includes(model)) {
-      throw new Error(`Model is not registered with provider ${this.descriptor.id}: ${model}`);
+      throw new Error("Model is not registered with provider " + this.descriptor.id + ": " + model);
     }
     const startedAt = Date.now();
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const response = await fetch(this.baseUrl + "/chat/completions", {
       method: "POST",
       headers: { ...this.headers(), "content-type": "application/json" },
       body: JSON.stringify({
@@ -99,7 +147,7 @@ export class LocalOpenAIProvider implements ModelProvider {
     });
     if (!response.ok) {
       const detail = (await response.text()).slice(0, 1000);
-      throw new Error(`Local model request failed (HTTP ${response.status}): ${detail}`);
+      throw new Error("Local model request failed (HTTP " + response.status + "): " + detail);
     }
     const payload = await response.json() as {
       model?: string;
@@ -121,7 +169,7 @@ export class LocalOpenAIProvider implements ModelProvider {
   }
 
   private headers(): Record<string, string> {
-    return this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {};
+    return this.apiKey ? { authorization: "Bearer " + this.apiKey } : {};
   }
 
   private signalWithTimeout(signal?: AbortSignal): AbortSignal {
