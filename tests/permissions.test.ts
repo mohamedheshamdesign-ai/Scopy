@@ -155,11 +155,11 @@ test("a more specific tool-and-action deny beats a broad actor allow", async () 
 test("approval_required wins over an equally specific allow rule", async () => {
   await withServices(({ rules, policy }) => {
     rules.setRule({
-      actorId: "agent:operations", tool: "email", action: "send",
+      actorId: "agent:operations", tool: "email", action: "*",
       effect: "allow",
     });
     rules.setRule({
-      actorId: "agent:operations", tool: "email", action: "send",
+      actorId: "agent:operations", tool: "*", action: "send",
       effect: "approval_required",
     });
     assert.equal(policy.evaluate({
