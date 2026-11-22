@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
-import { mkdir, readFile, symlink } from "node:fs/promises";
+import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -179,6 +179,34 @@ test("filesystem tool lists workspace entries and creates directories only throu
         actorId: "agent:developer", tool: "filesystem", action: "list", target: "../",
       }),
       FilesystemSandboxError,
+    );
+  });
+});
+
+
+test("filesystem tool enforces a 1 MiB bound on file reads and writes", async () => {
+  await withGateway(async ({ gateway, rules, workspace }) => {
+    rules.setRule({
+      actorId: "agent:developer", tool: "filesystem", action: "read",
+      targetPattern: "*", effect: "allow",
+    });
+    rules.setRule({
+      actorId: "agent:developer", tool: "filesystem", action: "write",
+      targetPattern: "*", effect: "allow",
+    });
+    await writeFile(join(workspace, "large.txt"), "x".repeat(1_048_577), "utf8");
+    await assert.rejects(
+      gateway.execute({
+        actorId: "agent:developer", tool: "filesystem", action: "read", target: "large.txt",
+      }),
+      /1 MiB read limit/,
+    );
+    await assert.rejects(
+      gateway.execute({
+        actorId: "agent:developer", tool: "filesystem", action: "write",
+        target: "too-large.txt", payload: { content: "x".repeat(1_048_577) },
+      }),
+      /cannot exceed 1 MiB/,
     );
   });
 });

@@ -1,5 +1,6 @@
 import { AgentRegistry, buildAgentMessages } from "./agents/agent-registry.js";
 import { ScopyLogger } from "./logging/scopy-logger.js";
+import { runDoctor } from "./doctor/doctor.js";
 import { createLocalAiRouter } from "./ai/create-local-router.js";
 import { listLocalModels } from "./ai/local-openai-provider.js";
 import { loadConfig } from "./config.js";
@@ -28,6 +29,7 @@ Scopy local core
 
 Commands:
   npm run dev -- health
+  npm run dev -- doctor
   npm run dev -- task add "Task title"
   npm run dev -- task list
   npm run dev -- task show <task-id>
@@ -84,6 +86,13 @@ async function main(): Promise<void> {
   logger.info("cli.command.started", { command: command ?? "unknown", subcommand: subcommand ?? null });
 
   try {
+    if (command === "doctor") {
+      const report = await runDoctor(config, database);
+      console.log(JSON.stringify(report, null, 2));
+      if (!report.healthy) process.exitCode = 1;
+      return;
+    }
+
     if (command === "health") {
       console.log(JSON.stringify({
         status: "ok",

@@ -1,4 +1,5 @@
-import { mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, realpath, stat, writeFile } from "node:fs/promises";
+import { Buffer } from "node:buffer";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import type { ActionRequest } from "../permissions/types.js";
 import { ToolGateway } from "./tool-gateway.js";
@@ -7,7 +8,9 @@ export interface FilesystemToolOptions {
   readonly workspaceRoot: string;
 }
 
-export interface FilesystemWritePayload {
+export const MAX_FILE_BYTES = 1_048_576;
+
+interface FilesystemWritePayload {
   readonly content: string;
 }
 
@@ -85,6 +88,9 @@ export class FilesystemTool {
       if (!isWithinRoot(root, actual)) {
         throw new FilesystemSandboxError("Resolved file is outside the configured Scopy workspace.");
       }
+      const fileInfo = await stat(actual);
+      if (!fileInfo.isFile()) throw new FilesystemSandboxError("Only regular files can be read.");
+      if (fileInfo.size > MAX_FILE_BYTES) throw new FilesystemSandboxError("File exceeds the 1 MiB read limit.");
       return readFile(actual, "utf8");
     }
 

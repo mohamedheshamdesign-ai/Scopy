@@ -21,7 +21,7 @@ This document describes code presence, not a claim that the current local checko
 | Permission rules and policy decisions | Implemented | `src/permissions/policy-engine.ts`, `src/permissions/permission-repository.ts`, `src/permissions/types.ts` | `tests/permissions.test.ts`; default-deny, scoped rules, CLI listing, and audited rule removal are implemented. |
 | Approval lifecycle and one-time payload-bound approvals | Implemented | `src/permissions/approval-service.ts` | `tests/permissions.test.ts`; approvals are bound to actor/tool/action/target/payload; pending and full status history can be inspected. |
 | Guarded tool execution | Implemented | `src/permissions/execution-guard.ts`, `src/tools/tool-gateway.ts` | `tests/tool-gateway.test.ts`, `tests/permissions.test.ts`. |
-| Workspace-scoped UTF-8 filesystem read/write/list/mkdir | Implemented, with isolation limits | `src/tools/filesystem-tool.ts` | `tests/tool-gateway.test.ts`; path traversal and symlink escape checks exist. This is not OS-level sandboxing and race-condition hardening remains planned. |
+| Workspace-scoped UTF-8 filesystem read/write/list/mkdir | Implemented, with isolation limits | `src/tools/filesystem-tool.ts` | `tests/tool-gateway.test.ts`; path traversal and symlink escape checks exist; file reads/writes are capped at 1 MiB and directory listings at 500 entries. This is not OS-level sandboxing and race-condition hardening remains planned. |
 | Runtime execution records, timeout/cancellation, output limits, checkpoints | Implemented, with documented limits | `src/runtime/runtime-engine.ts`, `src/db/database.ts` | `tests/runtime-engine.test.ts`; cancellation is cooperative, output limit is checked after serialization, and resume is caller-driven. |
 | AI provider contract and capability declarations | Implemented | `src/ai/types.ts` | `tests/ai-router.test.ts`. |
 | Local OpenAI-compatible provider | Implemented, limited | `src/ai/local-openai-provider.ts` | `tests/ai-router.test.ts`; loopback-only, health and non-streaming chat. No tool calling or vision. |
@@ -39,7 +39,7 @@ This document describes code presence, not a claim that the current local checko
 
 ## Not implemented or not evidenced by the current tracked source tree
 
-- Action resolution is limited to validated filesystem read/write proposals. Research, browser, terminal, desktop, and external-app actions are not supported by the resolver. Automatic crash recovery of interrupted side effects remains unimplemented.
+- Action resolution is limited to validated filesystem read/list/mkdir/write proposals. Research, browser, terminal, desktop, and external-app actions are not supported by the resolver. Automatic crash recovery of interrupted side effects remains unimplemented.
 - Multi-agent delegation, inter-agent messaging, and independent agent work queues.
 - Tool-enabled autonomous specialist agents; current specialist profiles are advisory-only and do not have web, filesystem, terminal, or external-app tools.
 - Browser automation.

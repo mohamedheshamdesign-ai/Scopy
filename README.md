@@ -111,7 +111,7 @@ Consequential actions configured as `approval_required` must have an approved re
 
 The planner can attach validated filesystem read/list/mkdir/write actions to individual plan steps. These typed actions are stored with the reviewed plan and copied into the run. Execute a saved action with `npm run dev -- run step execute <RUN_ID> <STEP_ID>`; when policy requires approval, inspect `npm run dev -- approval list`, approve the exact request, and repeat the execute command with the approval ID. Plan approval does not authorize tool execution. Unsupported steps remain manual; free-form model text is never executed.
 
-The Tool Gateway routes registered tools through the central execution guard. The first adapter is a UTF-8 filesystem tool scoped to `E:\\Scopy\\workspace` by default. It checks resolved paths and symlink destinations before reads and writes. This is a first security boundary, not an OS-level sandbox: local time-of-check/time-of-use races and OS-level isolation remain future hardening work.
+The Tool Gateway routes registered tools through the central execution guard. The first adapter is a UTF-8 filesystem tool scoped to `E:\\Scopy\\workspace` by default. It checks resolved paths and symlink destinations before reads and writes. This is a first security boundary, not an OS-level sandbox: reads and writes are capped at 1 MiB, directory listings at 500 entries, and local time-of-check/time-of-use races and OS-level isolation remain future hardening work.
 
 ### Runtime engine
 
