@@ -78,7 +78,7 @@ Implement only the contracts and infrastructure required for a first working ver
 5. [x] Bounded typed filesystem action proposals stored with reviewed plan steps and copied into runs; the CLI resolves saved actions without hand-written JSON.
 6. [ ] Expand action resolution only through separately validated schemas and registered tools; never execute model-generated free text as a tool call.
 7. [x] Built-in advisory-only agent registry and capability declarations; specialist profiles run through the local chat provider and cannot invoke tools.
-8. [ ] Multi-agent delegation, inter-agent messaging, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
+8. [ ] Multi-agent delegation and inter-agent messaging. [x] Explicit manual recovery of a single interrupted in-flight step after process-stop confirmation; side effects remain unknown and require inspection.
 8. Delegation, dependencies, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
 9. Evaluation of plan quality and execution outcomes.
 10. [ ] Add tool-enabled Research and Developer agents first, then expand based on real workflows.

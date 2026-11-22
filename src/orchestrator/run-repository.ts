@@ -280,6 +280,37 @@ export class PlanRunRepository {
     return this.getById(runId)!;
   }
 
+  recoverInterrupted(runId: string, confirmedPreviousProcessStopped = false): PlanRun {
+    if (!confirmedPreviousProcessStopped) {
+      throw new Error("Confirm the previous Scopy process is stopped before recovering an in-flight run.");
+    }
+    const now = new Date().toISOString();
+    const message = "Previous Scopy process stopped while this step was running. External side effects are unknown; inspect before retrying.";
+    const transition = this.database.transaction(() => {
+      const run = this.requireRun(runId);
+      if (run.status !== "running") throw new Error("Only a running plan run can be recovered.");
+      const active = this.database.prepare(
+        "SELECT step_id FROM orchestrator_run_steps WHERE run_id = ? AND status = 'running'",
+      ).all(runId) as Array<{ step_id: string }>;
+      if (active.length !== 1) {
+        throw new Error("Recovery requires exactly one in-flight step; no step was changed.");
+      }
+      const stepId = active[0]!.step_id;
+      this.database.prepare(`
+        UPDATE orchestrator_run_steps SET status = 'failed', error_text = ?, finished_at = ?
+        WHERE run_id = ? AND step_id = ? AND status = 'running'
+      `).run(message, now, runId, stepId);
+      this.database.prepare(`
+        UPDATE orchestrator_runs SET status = 'failed', updated_at = ?, finished_at = ?, error_text = ?
+        WHERE id = ? AND status = 'running'
+      `).run(now, now, message, runId);
+      this.audit(runId, "orchestrator.run.interrupted", { stepId, warning: message }, now);
+      this.saveCheckpoint(runId, "run.interrupted", now);
+    });
+    transition();
+    return this.getById(runId)!;
+  }
+
   resume(runId: string): PlanRun {
     const now = new Date().toISOString();
     const transition = this.database.transaction(() => {

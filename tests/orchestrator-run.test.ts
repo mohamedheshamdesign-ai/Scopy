@@ -162,3 +162,30 @@ test("typed action steps are copied into runs and cannot be manually completed",
     assert.equal(completed.status, "succeeded");
   });
 });
+
+
+test("interrupted run recovery requires explicit process-stop confirmation and never retries automatically", async () => {
+  await withRunRepositories(async (plans, runs) => {
+    const plan = plans.create("Recover an interrupted step", {
+      summary: "One step is in flight.",
+      steps: [{
+        id: "step-1", title: "In-flight step",
+        description: "A step that was interrupted.",
+        expectedOutput: "The result is reviewed.",
+        risk: "low", dependsOn: [],
+      }],
+    });
+    plans.review(plan.id, "approved", "user:local");
+    const run = runs.start(plan.id, "user:local");
+    runs.startStep(run.id, "step-1");
+    assert.throws(() => runs.recoverInterrupted(run.id), /Confirm the previous Scopy process/);
+    const recovered = runs.recoverInterrupted(run.id, true);
+    assert.equal(recovered.status, "failed");
+    assert.equal(recovered.steps[0]?.status, "failed");
+    assert.match(recovered.steps[0]?.error ?? "", /side effects are unknown/);
+    const resumed = runs.resume(run.id);
+    assert.equal(resumed.status, "running");
+    assert.equal(resumed.steps[0]?.status, "ready");
+    assert.equal(resumed.steps[0]?.attemptCount, 1);
+  });
+});

@@ -68,6 +68,7 @@ Commands:
   npm run dev -- run step complete <run-id> <step-id> ["result"]
   npm run dev -- run step fail <run-id> <step-id> "reason"
   npm run dev -- run step execute <run-id> <step-id> [approval-id]  # execute the saved plan action
+  npm run dev -- run recover <run-id> --confirm-process-stopped
   npm run dev -- run resume <run-id>
   npm run dev -- run cancel <run-id>
 `);
@@ -431,6 +432,17 @@ async function main(): Promise<void> {
           ...run,
           latestCheckpoint: runs.getLatestCheckpoint(id),
           notice: "Manual step transitions are bookkeeping only. Use run step execute to invoke a typed action through policy, approvals, runtime, and the tool gateway.",
+        }, null, 2));
+        return;
+      }
+      if (subcommand === "recover") {
+        const id = args[0];
+        if (!id || !args.includes("--confirm-process-stopped")) {
+          throw new Error("Usage: run recover <run-id> --confirm-process-stopped (only after confirming the previous Scopy process has stopped)");
+        }
+        console.log(JSON.stringify({
+          ...runs.recoverInterrupted(id, true),
+          notice: "The interrupted step is marked failed. Its external side effects are unknown; inspect them before resuming.",
         }, null, 2));
         return;
       }

@@ -42,6 +42,7 @@ npm run dev -- project list
 npm run dev -- task add "Prepare brand strategy" --project <PROJECT_ID>
 npm run dev -- task update <TASK_ID> status in_progress
 npm run dev -- backup create
+npm run dev -- run recover <RUN_ID> --confirm-process-stopped
 npm run dev -- permission list
 npm run dev -- permission remove <RULE_ID>
 npm run dev -- approval list --all
@@ -93,6 +94,8 @@ Do not commit directly to `main`.
 ## Current milestone
 
 `agent list` shows built-in specialists; `agent run <AGENT_ID> "prompt"` runs an advisory-only profile through the local model and relevant memory. Agents currently have no tools, browser, or execution permissions. `permission list` inspects stored policy rules, `permission remove <RULE_ID>` revokes a stored rule, and `approval list --all` shows approval history including consumed requests. `memory archive <MEMORY_ID>` archives a memory record, and `audit list` inspects recent audit events (filter with `--entity`, `--id`, and `--limit`).
+
+If Scopy exits while a plan step is running, inspect the run and only use `run recover <RUN_ID> --confirm-process-stopped` after confirming the prior process has stopped. Recovery marks the step failed; it does not assume the action had no side effects or retry it automatically.
 
 The local foundation includes task and project persistence, versioned SQLite migrations, SQLite backup creation and integrity verification, a central permission policy engine, exact-action approval records, one-time approval consumption, audit events, local AI chat, typed planning, and guarded filesystem execution. GitHub Actions validates the project on Windows and Linux for changes to `dev`.
 
