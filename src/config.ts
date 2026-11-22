@@ -12,8 +12,9 @@ export interface ScopyConfig {
 
 export function loadConfig(
   homeOverride?: string,
-  environment: Readonly<Record<string, string | undefined>> = process.env,
+  environmentOverride?: Readonly<Record<string, string | undefined>>,
 ): ScopyConfig {
+  const environment = environmentOverride ?? (homeOverride === undefined ? process.env : {});
   const configuredHome = homeOverride ?? environment.SCOPY_HOME ?? process.cwd();
   if (configuredHome.includes(String.fromCharCode(0))) {
     throw new Error("SCOPY_HOME contains an invalid null character.");
