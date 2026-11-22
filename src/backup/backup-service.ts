@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, rmSync } from "node:fs";
-import { copyFile, lstat, rename, rm } from "node:fs/promises";
+import { copyFile, lstat, readdir, rename, rm, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import Database from "better-sqlite3";
 import type { ScopyDatabase } from "../db/database.js";
@@ -14,6 +14,12 @@ export interface BackupVerification {
   readonly projectCount: number;
 }
 
+export interface BackupListEntry {
+  readonly name: string;
+  readonly sizeBytes: number;
+  readonly modifiedAt: string;
+}
+
 export class BackupService {
   private readonly backupDirectory: string;
 
@@ -21,6 +27,30 @@ export class BackupService {
     this.backupDirectory = join(homeDirectory, "backups");
   }
 
+  async list(): Promise<BackupListEntry[]> {
+    let entries;
+    try {
+      entries = await readdir(this.backupDirectory, { withFileTypes: true });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
+    }
+    const candidates = entries.filter((entry) =>
+      entry.isFile() && /^scopy-\d{8}T\d{6}Z-[0-9a-f]{8}\.sqlite$/.test(entry.name),
+    );
+    const listed = await Promise.all(candidates.map(async (entry): Promise<BackupListEntry | null> => {
+      try {
+        const info = await stat(join(this.backupDirectory, entry.name));
+        return { name: entry.name, sizeBytes: info.size, modifiedAt: info.mtime.toISOString() };
+      } catch {
+        return null;
+      }
+    }));
+    return listed
+      .filter((entry): entry is BackupListEntry => entry !== null)
+      .sort((left, right) => right.modifiedAt.localeCompare(left.modifiedAt))
+      .slice(0, 100);
+  }
   async create(): Promise<BackupVerification> {
     mkdirSync(this.backupDirectory, { recursive: true });
     const timestamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");

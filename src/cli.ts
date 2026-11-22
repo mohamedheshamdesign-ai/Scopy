@@ -41,6 +41,7 @@ Commands:
   npm run dev -- project update <project-id> <name|description> <value>
   npm run dev -- project archive <project-id>
   npm run dev -- backup create
+  npm run dev -- backup list
   npm run dev -- backup verify <backup-filename>
   npm run dev -- backup restore <backup-filename>
   npm run dev -- ai models
@@ -296,6 +297,10 @@ async function main(): Promise<void> {
         console.log(JSON.stringify(await backups.create(), null, 2));
         return;
       }
+      if (subcommand === "list") {
+        console.log(JSON.stringify(await backups.list(), null, 2));
+        return;
+      }
       if (subcommand === "verify") {
         const name = args[0];
         if (!name) throw new Error("Usage: backup verify <backup-filename>");
@@ -322,7 +327,7 @@ async function main(): Promise<void> {
         }, null, 2));
         return;
       }
-      throw new Error("Usage: backup <create|verify|restore> [backup-filename]");
+      throw new Error("Usage: backup <create|list|verify|restore> [backup-filename]");
     }
 
     if (command === "project") {

@@ -23,6 +23,10 @@ test("SQLite backups are consistent, verifiable, and confined to Scopy backup na
     assert.equal(created.migrationVersion, 8);
     assert.equal(created.taskCount, 1);
     assert.equal(created.projectCount, 1);
+    const listed = await backups.list();
+    assert.equal(listed.length, 1);
+    assert.equal(listed[0]?.name, created.name);
+    assert.ok((listed[0]?.sizeBytes ?? 0) > 0);
     tasks.create({ title: "Created after snapshot" });
     const verified = backups.verify(created.name);
     assert.equal(verified.taskCount, 1);
@@ -73,6 +77,17 @@ test("SQLite restore rejects a schema mismatch before replacing the current data
     assert.deepEqual(new TaskRepository(database).list().map((task) => task.title), ["Keep this record"]);
   } finally {
     database?.close();
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("backup list returns an empty array when no backup directory exists", async () => {
+  const home = await mkdtemp(join(tmpdir(), "scopy-backup-list-empty-test-"));
+  const database = openDatabase(loadConfig(home));
+  try {
+    assert.deepEqual(await new BackupService(database, home).list(), []);
+  } finally {
+    database.close();
     await rm(home, { recursive: true, force: true });
   }
 });

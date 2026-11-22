@@ -54,6 +54,7 @@ npm run dev -- project update <PROJECT_ID> description "Updated project descript
 npm run dev -- task add "Prepare brand strategy" --project <PROJECT_ID>
 npm run dev -- task update <TASK_ID> status in_progress
 npm run dev -- backup create
+npm run dev -- backup list
 npm run dev -- run execute <RUN_ID> [APPROVAL_ID]
 npm run dev -- run recover <RUN_ID> --confirm-process-stopped
 npm run dev -- permission list
@@ -64,7 +65,7 @@ npm run dev -- agent list
 npm run dev -- agent run brand-designer "Create a brand identity direction for a premium design studio"
 ```
 
-Projects can be created, listed, inspected, and archived. Tasks can be linked to active projects, filtered by project/status, and updated. Use `project show <PROJECT_ID>` to inspect a project and its tasks, `project update <PROJECT_ID> name|description <value>` to edit it, and `project archive <PROJECT_ID>` to archive it without deleting linked tasks. Run `backup create` to create a SQLite snapshot under `E:\\Scopy\\backups`, then `backup verify <BACKUP_FILENAME>` to check its integrity. Use `backup restore <BACKUP_FILENAME>` to restore a verified snapshot; Scopy first creates and retains a verified safety backup of the current database. Close other Scopy processes before restoring.
+Projects can be created, listed, inspected, and archived. Tasks can be linked to active projects, filtered by project/status, and updated. Use `project show <PROJECT_ID>` to inspect a project and its tasks, `project update <PROJECT_ID> name|description <value>` to edit it, and `project archive <PROJECT_ID>` to archive it without deleting linked tasks. Run `backup list` to see saved snapshots, and `backup create` to create a SQLite snapshot under `E:\\Scopy\\backups`, then `backup verify <BACKUP_FILENAME>` to check its integrity. Use `backup restore <BACKUP_FILENAME>` to restore a verified snapshot; Scopy first creates and retains a verified safety backup of the current database. Close other Scopy processes before restoring.
 
 To complete a task, copy its ID from the task list:
 
