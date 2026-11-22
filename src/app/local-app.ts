@@ -84,18 +84,16 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
       if (request.method === "POST" && approval) { const result = approval[2] === "approve" ? approvals.approve(approval[1]!, "user:local") : approvals.reject(approval[1]!, "user:local"); return send(response, 200, result); }
       if (request.method === "GET" && url.pathname === "/api/plans") return send(response, 200, plans.list());
       if (request.method === "GET" && url.pathname === "/api/runs") return send(response, 200, runs.list());
-      const planReview = url.pathname.match(/^\\/api\\/plans\\/([0-9a-f-]+)\\/(approve|reject)$/i);
-      if (request.method === "POST" && planReview) return send(response, 200, plans.review(planReview[1]!, planReview[2] === "approve" ? "approved" : "rejected", "user:local"));
-      const planStart = url.pathname.match(/^\\/api\\/plans\\/([0-9a-f-]+)\\/start$/i);
-      if (request.method === "POST" && planStart) return send(response, 201, runs.start(planStart[1]!, "user:local"));
-      const runExecute = url.pathname.match(/^\\/api\\/runs\\/([0-9a-f-]+)\\/execute$/i);
-      if (request.method === "POST" && runExecute) {
+      const segments = url.pathname.split("/");
+      if (request.method === "POST" && segments[1] === "api" && segments[2] === "plans" && segments.length === 5 && (segments[4] === "approve" || segments[4] === "reject")) return send(response, 200, plans.review(segments[3]!, segments[4] === "approve" ? "approved" : "rejected", "user:local"));
+      if (request.method === "POST" && segments[1] === "api" && segments[2] === "plans" && segments.length === 5 && segments[4] === "start") return send(response, 201, runs.start(segments[3]!, "user:local"));
+      if (request.method === "POST" && segments[1] === "api" && segments[2] === "runs" && segments.length === 5 && segments[4] === "execute") {
         const b = await readBody(request);
         const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
         new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
         const runtime = new RuntimeEngine(database, gateway);
         const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
-        return send(response, 200, await executor.executeReadySteps(runExecute[1]!, {}, typeof b.approvalId === "string" ? b.approvalId : undefined));
+        return send(response, 200, await executor.executeReadySteps(segments[3]!, {}, typeof b.approvalId === "string" ? b.approvalId : undefined));
       }
       if (request.method === "POST" && url.pathname === "/api/plans") { const b = await readBody(request); if (typeof b.goal !== "string" || !b.goal.trim()) return send(response, 400, { error: "Plan goal is required." }); const router = createLocalAiRouter(database); const provider = router.list()[0]; if (!provider) return send(response, 503, { error: "Local AI is not connected." }); return send(response, 201, await generateDraftPlan(router, provider.id, plans, b.goal.trim().slice(0, 2000))); }
       return send(response, 404, { error: "API route not found." });
