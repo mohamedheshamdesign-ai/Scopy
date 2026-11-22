@@ -112,7 +112,7 @@ Do not commit directly to `main`.
 
 ## Current milestone
 
-`agent list` shows built-in specialists; `agent run <AGENT_ID> "prompt"` runs an advisory-only profile through the local model and relevant memory. Agents currently have no tools, browser, or execution permissions. `permission list` inspects stored policy rules, `permission remove <RULE_ID>` revokes a stored rule, and `approval list --all` shows approval history including consumed requests. `memory archive <MEMORY_ID>` archives a memory record, and `audit list` inspects recent audit events (filter with `--entity`, `--id`, and `--limit`).
+`agent list` shows built-in specialists; `agent run <AGENT_ID> "prompt"` runs an advisory-only profile through the local model and relevant memory. Specialist profiles remain advisory-only and do not autonomously call tools. The local dashboard provides sequential specialist-team synthesis plus guarded plan execution. `permission list` inspects stored policy rules, `permission remove <RULE_ID>` revokes a stored rule, and `approval list --all` shows approval history including consumed requests. `memory archive <MEMORY_ID>` archives a memory record, and `audit list` inspects recent audit events (filter with `--entity`, `--id`, and `--limit`).
 
 If Scopy exits while a plan step is running, inspect the run and only use `run recover <RUN_ID> --confirm-process-stopped` after confirming the prior process has stopped. Recovery marks the step failed; it does not assume the action had no side effects or retry it automatically.
 
@@ -126,9 +126,9 @@ The filesystem adapter resolves existing paths (including symlinks) and verifies
 
 Consequential actions configured as `approval_required` must have an approved request whose SHA-256 action fingerprint matches the exact actor, tool, action, target, and payload. The approval is consumed once before the handler runs. Policy decisions are re-evaluated at execution time.
 
-The planner can attach validated filesystem read/list/mkdir/write actions to individual plan steps. These typed actions are stored with the reviewed plan and copied into the run. Execute a saved action with `npm run dev -- run step execute <RUN_ID> <STEP_ID>`; when policy requires approval, inspect `npm run dev -- approval list`, approve the exact request, and repeat the execute command with the approval ID. Plan approval does not authorize tool execution. Unsupported steps remain manual; free-form model text is never executed.
+The planner can attach validated filesystem read/list/mkdir/write, browser-open, and constrained terminal-run actions to individual plan steps. These typed actions are stored with the reviewed plan and copied into the run. Execute a saved action with `npm run dev -- run step execute <RUN_ID> <STEP_ID>`; when policy requires approval, inspect `npm run dev -- approval list`, approve the exact request, and repeat the execute command with the approval ID. Plan approval does not authorize tool execution. Browser and terminal actions always require exact one-time approval. Unsupported steps remain manual; free-form model text is never executed.
 
-The Tool Gateway routes registered tools through the central execution guard. The first adapter is a UTF-8 filesystem tool scoped to `E:\\Scopy\\workspace` by default. It checks resolved paths and symlink destinations before reads and writes. This is a first security boundary, not an OS-level sandbox: reads and writes are capped at 1 MiB, directory listings at 500 entries, and local time-of-check/time-of-use races and OS-level isolation remain future hardening work.
+The Tool Gateway routes registered tools through the central execution guard. Adapters include workspace-scoped filesystem access, a no-shell allowlisted terminal, isolated Chrome/Edge navigation and text extraction, basic Windows UI Automation, and opt-in local stdio MCP servers. Terminal, browser-plan, computer, and MCP actions require exact one-time approval; MCP approval is bound to the server configuration fingerprint. The filesystem adapter checks resolved paths and symlink destinations; reads/writes are capped at 1 MiB and listings at 500 entries. Terminal and UI Automation are not OS-level sandboxes; browser clicks/forms/downloads and advanced computer control remain future work.
 
 ### Runtime engine
 
@@ -142,7 +142,7 @@ The Runtime Engine wraps gateway calls and stores execution records and checkpoi
 
 Tools should observe `context.signal` and periodically check it during long operations. Cancellation and timeout are cooperative: a handler that ignores the signal may continue running after the Runtime Engine has stopped awaiting it. The output limit is checked after a handler returns and its result is serialized; it limits accepted/persisted output, not peak memory allocated inside a tool. Streaming output enforcement and hard process isolation are future work.
 
-The gateway is an internal application API; no tool-enabled agent or external integration is connected yet. Reviewer identity is currently supplied by the trusted local application layer; authenticated user identity and a local approval interface remain future work.
+The gateway is an internal application API. MCP stdio integrations are configured and invoked from the local dashboard, but specialist profiles do not yet autonomously invoke tools. Reviewer identity is currently supplied by the trusted local application layer; multi-user authenticated identity and a richer approval interface remain future work.
 
 
 ### AI Router and memory (initial local milestone)
