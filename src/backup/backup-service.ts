@@ -107,8 +107,8 @@ export async function restoreBackupSnapshot(
   const databaseName = basename(databasePath);
   const stagingPath = join(directory, `.${databaseName}.restore-${randomUUID()}.tmp`);
   const rollbackPath = join(directory, `.${databaseName}.rollback-${randomUUID()}.sqlite`);
-  await copyFile(sourcePath, stagingPath);
   try {
+    await copyFile(sourcePath, stagingPath);
     const migrationVersion = inspectSnapshot(stagingPath, expectedMigrationVersion);
     for (const sidecar of [`${databasePath}-wal`, `${databasePath}-shm`]) {
       try {
@@ -119,18 +119,20 @@ export async function restoreBackupSnapshot(
       }
     }
     await rename(databasePath, rollbackPath);
+    let newDatabaseInstalled = false;
     try {
       await rename(stagingPath, databasePath);
+      newDatabaseInstalled = true;
       inspectSnapshot(databasePath, expectedMigrationVersion);
       await rm(rollbackPath, { force: true });
       return { name, path: databasePath, migrationVersion };
     } catch (error) {
-      await rm(databasePath, { force: true });
+      if (newDatabaseInstalled) await rm(databasePath, { force: true });
       try {
         await rename(rollbackPath, databasePath);
       } catch (rollbackError) {
         const rollbackMessage = rollbackError instanceof Error ? rollbackError.message : "unknown rollback error";
-        throw new Error(`Restore failed and the original database could not be put back. Preserve the safety backup. Rollback error: ${rollbackMessage}`);
+        throw new Error(`Restore failed and the original database could not be put back. Preserve the safety backup and original database at ${rollbackPath}. Rollback error: ${rollbackMessage}`);
       }
       throw error;
     }
