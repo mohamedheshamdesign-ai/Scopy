@@ -21,7 +21,7 @@ export interface TerminalToolOptions {
   readonly maxOutputBytes?: number;
 }
 
-interface TerminalPayload { readonly commandId: string; }
+interface TerminalPayload { readonly commandId?: string; readonly executable?: string; readonly args?: readonly string[]; readonly timeoutMs?: number; }
 
 function within(root: string, candidate: string): boolean {
   const rel = relative(root, candidate);
@@ -58,8 +58,17 @@ export class TerminalTool {
   private async handle(request: ActionRequest, context?: ToolExecutionContext): Promise<unknown> {
     if (request.action !== "run") throw new Error("Terminal supports only the run action.");
     const payload = request.payload as TerminalPayload | undefined;
-    if (!payload || typeof payload.commandId !== "string" || !Object.hasOwn(COMMANDS, payload.commandId)) throw new Error("Unknown terminal command ID.");
-    const command = COMMANDS[payload.commandId]!;
+    if (!payload) throw new Error("Terminal command payload is required.");
+    let commandId = payload.commandId;
+    if (!commandId && typeof payload.executable === "string" && Array.isArray(payload.args)) {
+      commandId = Object.keys(COMMANDS).find(id => COMMANDS[id]!.program === payload.executable &&
+        COMMANDS[id]!.args.length === payload.args!.length &&
+        COMMANDS[id]!.args.every((arg, index) => arg === payload.args![index]));
+    }
+    if (typeof commandId !== "string" || !Object.hasOwn(COMMANDS, commandId)) throw new Error("Terminal command is not in the fixed allowlist.");
+    const command = COMMANDS[commandId]!;
+    const commandTimeoutMs = payload.timeoutMs ?? this.timeoutMs;
+    if (!Number.isInteger(commandTimeoutMs) || commandTimeoutMs < 1000 || commandTimeoutMs > 120000) throw new Error("Terminal command timeout must be between 1000 and 120000ms.");
     const cwd = resolve(this.root, request.target || ".");
     const actualRoot = await realpath(this.root);
     const actualCwd = await realpath(cwd);
@@ -112,7 +121,7 @@ export class TerminalTool {
           return;
         }
         finish(undefined, {
-          commandId: payload.commandId,
+          commandId,
           exitCode: code,
           stdout: stdout.slice(0, this.maxOutputBytes),
           stderr: stderr.slice(0, this.maxOutputBytes),
@@ -128,7 +137,7 @@ export class TerminalTool {
       timer = setTimeout(() => {
         child.kill();
         finish(new Error("Terminal command timed out after " + this.timeoutMs + "ms."));
-      }, this.timeoutMs);
+      }, commandTimeoutMs);
     });
   }
 }
