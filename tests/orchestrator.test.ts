@@ -7,7 +7,8 @@ import { join } from "node:path";
 import test from "node:test";
 import { loadConfig } from "../src/config.js";
 import { openDatabase } from "../src/db/database.js";
-import { parsePlannerResponse, validateGeneratedPlan } from "../src/orchestrator/plan.js";
+import { parsePlannerResponse, validateGeneratedPlan, validatePlanAction } from "../src/orchestrator/plan.js";
+import { resolvePlanAction } from "../src/orchestrator/action-resolver.js";
 import { PlanNotFoundError, PlanRepository } from "../src/orchestrator/plan-repository.js";
 import { generateDraftPlan } from "../src/orchestrator/planner.js";
 
@@ -132,7 +133,7 @@ test("typed filesystem actions are validated and persist with the plan", async (
     }), /workspace-relative/);
     assert.throws(() => validateGeneratedPlan({
       ...draft,
-      steps: [{ ...draft.steps[0], action: { ...draft.steps[0].action, tool: "terminal" } }],
+      steps: [{ ...draft.steps[0], action: { ...draft.steps[0].action, tool: "unsupported" } }],
     }), /unsupported tool/);
     assert.throws(() => validateGeneratedPlan({
       ...draft,
@@ -180,4 +181,39 @@ test("specialist-guided planning adds domain context but still creates an unappr
     database.close();
     await rm(home, { recursive: true, force: true });
   }
+});
+
+
+test("typed browser and terminal plan actions validate and resolve through actor binding", () => {
+  const browser = validatePlanAction({
+    tool: "browser", action: "open", target: "https://example.com/research",
+  }, "browser-step");
+  assert.deepEqual(browser, {
+    tool: "browser", action: "open", target: "https://example.com/research",
+  });
+  assert.deepEqual(resolvePlanAction(browser, "user:local"), {
+    actorId: "user:local", tool: "browser", action: "open",
+    target: "https://example.com/research", payload: {},
+  });
+
+  const terminal = validatePlanAction({
+    tool: "terminal", action: "run", target: ".",
+    payload: { executable: "powershell.exe", args: ["-NoProfile", "-Command", "Get-ChildItem"], timeoutMs: 30000 },
+  }, "terminal-step");
+  assert.deepEqual(resolvePlanAction(terminal, "user:local"), {
+    actorId: "user:local", tool: "terminal", action: "run", target: ".",
+    payload: { executable: "powershell.exe", args: ["-NoProfile", "-Command", "Get-ChildItem"], timeoutMs: 30000 },
+  });
+
+  assert.throws(() => validatePlanAction({
+    tool: "browser", action: "open", target: "javascript:alert(1)",
+  }, "unsafe-browser"), /http\/https/);
+  assert.throws(() => validatePlanAction({
+    tool: "terminal", action: "run", target: "../outside",
+    payload: { executable: "powershell.exe", args: [], timeoutMs: 30000 },
+  }, "unsafe-terminal"), /workspace-relative/);
+  assert.throws(() => validatePlanAction({
+    tool: "terminal", action: "run", target: ".",
+    payload: { executable: "cmd.exe", args: [], timeoutMs: 30000 },
+  }, "unsupported-executable"), /not allowed/);
 });
