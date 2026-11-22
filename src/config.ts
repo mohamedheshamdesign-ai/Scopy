@@ -1,6 +1,9 @@
 import { join, resolve } from "node:path";
 
+export type ScopySafetyProfile = "strict" | "workspace_assist";
+
 export interface ScopyConfig {
+  readonly safetyProfile: ScopySafetyProfile;
   readonly homeDir: string;
   readonly dataDir: string;
   readonly databasePath: string;
@@ -19,6 +22,11 @@ export function loadConfig(
   if (configuredHome.includes(String.fromCharCode(0))) {
     throw new Error("SCOPY_HOME contains an invalid null character.");
   }
+  const rawSafetyProfile = environment.SCOPY_SAFETY_PROFILE?.trim() ?? "strict";
+  if (rawSafetyProfile !== "strict" && rawSafetyProfile !== "workspace_assist") {
+    throw new Error("SCOPY_SAFETY_PROFILE must be strict or workspace_assist.");
+  }
+  const safetyProfile: ScopySafetyProfile = rawSafetyProfile;
   const homeDir = resolve(configuredHome);
   const dataDir = join(homeDir, "data");
   const configuredWorkspace = environment.SCOPY_WORKSPACE_DIR?.trim();
@@ -28,6 +36,7 @@ export function loadConfig(
   const workspaceDir = configuredWorkspace ? resolve(homeDir, configuredWorkspace) : join(homeDir, "workspace");
 
   return Object.freeze({
+    safetyProfile,
     homeDir,
     dataDir,
     databasePath: join(dataDir, "scopy.sqlite"),
