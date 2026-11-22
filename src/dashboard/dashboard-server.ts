@@ -23,6 +23,7 @@ import { FilesystemTool } from "../tools/filesystem-tool.js";
 import { TerminalTool } from "../tools/terminal-tool.js";
 import { PlanStepExecutor } from "../orchestrator/step-executor.js";
 import { BackupService } from "../backup/backup-service.js";
+import { LocalBrowserSession } from "../browser/browser-session.js";
 import { dashboardHtml } from "./dashboard-html.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
@@ -87,12 +88,15 @@ export class DashboardServer {
   private server: Server | undefined;
   private token = "";
   private boundPort = 4173;
+  private readonly browser: LocalBrowserSession;
 
   constructor(
     private readonly config: ScopyConfig,
     private readonly database: ScopyDatabase,
     private readonly options: DashboardOptions = {},
-  ) {}
+  ) {
+    this.browser = new LocalBrowserSession(config.homeDir);
+  }
 
   async start(): Promise<void> {
     const port = this.options.port ?? Number(process.env.SCOPY_DASHBOARD_PORT ?? "4173");
@@ -127,12 +131,18 @@ export class DashboardServer {
     console.log("Open: http://127.0.0.1:" + this.boundPort + "/#token=" + this.token);
     console.log("Bound to 127.0.0.1 only. Keep this terminal open; press Ctrl+C to stop.");
     console.log("Dashboard token is stored under SCOPY_HOME\\secrets\\dashboard-token.txt.");
+    const shutdown = (): void => { void this.browser.close().finally(() => this.server?.close()); };
+    process.once("SIGINT", shutdown);
+    process.once("SIGTERM", shutdown);
     await new Promise<void>((resolve) => {
       this.server!.once("close", resolve);
     });
+    process.off("SIGINT", shutdown);
+    process.off("SIGTERM", shutdown);
   }
 
   close(): void {
+    void this.browser.close();
     this.server?.close();
   }
 
@@ -425,6 +435,71 @@ export class DashboardServer {
       const runtime = new RuntimeEngine(this.database, gateway);
       const result = await runtime.execute(action, { timeoutMs: timeoutMs + 5000, maxOutputBytes: 100000 }, approvalId);
       json(response, 200, result);
+      return;
+    }
+
+
+    if (method === "GET" && path === "/api/browser/status") {
+      json(response, 200, this.browser.status());
+      return;
+    }
+
+    if (method === "POST" && path === "/api/browser/start") {
+      json(response, 200, await this.browser.start());
+      return;
+    }
+
+    if (method === "POST" && path === "/api/browser/open") {
+      const input = await body(request);
+      const url = stringField(input, "url", 2048);
+      json(response, 200, await this.browser.open(url));
+      return;
+    }
+
+    if (method === "GET" && path === "/api/browser/read") {
+      json(response, 200, await this.browser.read());
+      return;
+    }
+
+    if (method === "POST" && path === "/api/browser/close") {
+      await this.browser.close();
+      json(response, 200, { closed: true });
+      return;
+    }
+
+    if (method === "POST" && path === "/api/delegate") {
+      const input = await body(request);
+      const prompt = stringField(input, "prompt", 8000);
+      if (!Array.isArray(input.agentIds) || input.agentIds.length < 2 || input.agentIds.length > 3 ||
+          !input.agentIds.every((id) => typeof id === "string")) {
+        throw new Error("Team mode requires two or three specialist agent IDs.");
+      }
+      const registry = new AgentRegistry();
+      const selected = [...new Set(input.agentIds as string[])].map((id) => registry.get(id));
+      if (selected.some((agent) => agent.id === "assistant")) throw new Error("Choose specialist profiles for team mode.");
+      const router = createLocalAiRouter(this.database);
+      const provider = router.list()[0];
+      if (!provider) throw new Error("No local AI provider is configured.");
+      const projectContext = await loadProjectContext();
+      const relevant = memories.search(prompt, { limit: 5 });
+      const contributions: Array<{ agentId: string; name: string; response: string }> = [];
+      for (const agent of selected) {
+        const result = await router.generate(provider.id, {
+          messages: buildAgentMessages(agent, prompt, projectContext, relevant),
+          temperature: 0.2,
+          maxOutputTokens: 700,
+        }, { actorId: ACTOR, purpose: "local sequential specialist delegation: " + agent.id });
+        contributions.push({ agentId: agent.id, name: agent.name, response: result.text });
+      }
+      const synthesis = await router.generate(provider.id, {
+        messages: [
+          { role: "system", content: "Synthesize the specialist contributions into one practical answer. Separate agreement, disagreements, assumptions, and recommended next actions. Do not claim any specialist used tools or performed actions." },
+          { role: "user", content: "USER GOAL:\n" + prompt + "\n\nSPECIALIST CONTRIBUTIONS:\n" + contributions.map((item) => item.name + ":\n" + item.response).join("\n\n") },
+        ],
+        temperature: 0.2,
+        maxOutputTokens: 1200,
+      }, { actorId: ACTOR, purpose: "synthesize specialist delegation" });
+      json(response, 200, { contributions, synthesis: synthesis.text, model: synthesis.model });
       return;
     }
 
