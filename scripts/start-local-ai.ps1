@@ -131,8 +131,8 @@ if ($HelpText -match "--metrics") {
     $ServerArgs += "--metrics"
 }
 if ($SpeculativeMode -ne "none") {
-    if ($HelpText -notmatch "--spec-type") {
-        throw "This llama.cpp build does not expose --spec-type. Keep speculative decoding disabled."
+    if ($HelpText -notmatch "--spec-type" -or $HelpText -notmatch [regex]::Escape($SpeculativeMode)) {
+        throw "This llama.cpp build does not list speculative mode $SpeculativeMode. Keep speculative decoding disabled."
     }
     $ServerArgs += @("--spec-type", $SpeculativeMode)
 }
