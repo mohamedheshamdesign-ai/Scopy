@@ -22,6 +22,7 @@ import { FilesystemTool } from "../tools/filesystem-tool.js";
 import { ToolGateway } from "../tools/tool-gateway.js";
 import { searchWeb } from "../research/web-research.js";
 import { TerminalTool } from "../tools/terminal-tool.js";
+import { BrowserTool } from "../tools/browser-tool.js";
 import type { ActionRequest } from "../permissions/types.js";
 
 export interface LocalAppHandle { readonly url: string; close(): Promise<void>; }
@@ -63,7 +64,7 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Port must be between 1024 and 65535.");
   const token = randomBytes(32).toString("hex");
   const tasks = new TaskRepository(database); const projects = new ProjectRepository(database); const memories = new MemoryRepository(database);
-  const agents = new AgentRegistry(); const permissionRepo = new PermissionRepository(database); const policy = new PolicyEngine(permissionRepo, config.safetyProfile); const approvals = new ApprovalService(database, policy); const plans = new PlanRepository(database); const runs = new PlanRunRepository(database); const approvalRunIds = new Map<string, string>(); const pendingTerminalActions = new Map<string, ActionRequest>();
+  const agents = new AgentRegistry(); const permissionRepo = new PermissionRepository(database); const policy = new PolicyEngine(permissionRepo, config.safetyProfile); const approvals = new ApprovalService(database, policy); const plans = new PlanRepository(database); const runs = new PlanRunRepository(database); const approvalRunIds = new Map<string, string>(); const pendingTerminalActions = new Map<string, ActionRequest>(); const pendingBrowserActions = new Map<string, ActionRequest>(); const browserTool = new BrowserTool({ homeDir: config.homeDir });
   const server = createServer(async (request, response) => {
     try {
       if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(request.headers.host ?? "")) return send(response, 403, { error: "Localhost only." });
@@ -83,6 +84,25 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
       if (request.method === "POST" && url.pathname === "/api/permissions/terminal-approval") {
         const rule = permissionRepo.setRule({ actorId: "user:local", tool: "terminal", action: "run", targetPattern: config.workspaceDir, effect: "approval_required" });
         return send(response, 201, rule);
+      }
+      if (request.method === "POST" && url.pathname === "/api/permissions/browser-approval") {
+        const rule = permissionRepo.setRule({ actorId: "user:local", tool: "browser", action: "open", targetPattern: "*", effect: "approval_required" });
+        return send(response, 201, rule);
+      }
+      if (request.method === "POST" && url.pathname === "/api/browser/open") {
+        const b = await readBody(request);
+        if (typeof b.url !== "string") return send(response, 400, { error: "A public URL is required." });
+        const action: ActionRequest = { actorId: "user:local", tool: "browser", action: "open", target: b.url };
+        const decision = policy.evaluate(action);
+        if (decision.effect === "deny") return send(response, 403, { error: "Browser navigation is denied by policy. Enable approval-gated browser access first." });
+        const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
+        browserTool.register(gateway);
+        if (decision.effect === "approval_required") {
+          const approval = approvals.request(action);
+          pendingBrowserActions.set(approval.id, action);
+          return send(response, 202, { status: "approval_required", approval });
+        }
+        return send(response, 200, await new RuntimeEngine(database, gateway).execute(action, { timeoutMs: 120000 }));
       }
       if (request.method === "POST" && url.pathname === "/api/terminal") {
         const b = await readBody(request);
@@ -107,8 +127,16 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
       const approval = url.pathname.match(/^\/api\/approvals\/([0-9a-f-]+)\/(approve|reject)$/i);
       if (request.method === "POST" && approval) {
         const id = approval[1]!;
-        if (approval[2] === "reject") { approvalRunIds.delete(id); pendingTerminalActions.delete(id); return send(response, 200, approvals.reject(id, "user:local")); }
+        if (approval[2] === "reject") { approvalRunIds.delete(id); pendingTerminalActions.delete(id); pendingBrowserActions.delete(id); return send(response, 200, approvals.reject(id, "user:local")); }
         const result = approvals.approve(id, "user:local");
+        const browserAction = pendingBrowserActions.get(id);
+        if (browserAction) {
+          pendingBrowserActions.delete(id);
+          const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
+          browserTool.register(gateway);
+          const execution = await new RuntimeEngine(database, gateway).execute(browserAction, { timeoutMs: 120000 }, id);
+          return send(response, 200, { approval: result, execution });
+        }
         const terminalAction = pendingTerminalActions.get(id);
         if (terminalAction) {
           pendingTerminalActions.delete(id);
