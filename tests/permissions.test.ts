@@ -285,3 +285,13 @@ test("MCP external tool calls always require exact approval even with an allow r
     }).effect, "approval_required");
   });
 });
+
+ 
+test("an explicit deny rule overrides the terminal and browser approval requirement", async () => {
+  await withServices(({ rules }) => {
+    rules.setRule({ actorId: "user:local", tool: "terminal", action: "run", effect: "deny" });
+    const policy = new PolicyEngine(rules, "workspace_assist");
+    assert.equal(policy.evaluate({ actorId: "user:local", tool: "terminal", action: "run", target: ".", payload: {} }).effect, "deny");
+    assert.equal(policy.evaluate({ actorId: "user:local", tool: "browser", action: "open", target: "https://example.com", payload: {} }).effect, "approval_required");
+  });
+});
