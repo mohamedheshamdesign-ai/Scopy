@@ -51,8 +51,9 @@ export class PlanStepExecutor {
       readonly approval?: ApprovalRequest;
     };
   }> {
-    let run = this.runs.getById(runId);
-    if (!run) throw new Error(`Plan run not found: ${runId}`);
+    const initialRun = this.runs.getById(runId);
+    if (!initialRun) throw new Error(`Plan run not found: ${runId}`);
+    let run: PlanRun = initialRun;
     const executedStepIds: string[] = [];
     let nextApprovalId = approvalId;
 
@@ -66,15 +67,15 @@ export class PlanStepExecutor {
       if (!step.action) return { run, executedStepIds, pausedAt: { stepId: step.id, reason: "manual_step" } };
 
       try {
-        const result = await this.executePlanned(runId, step.id, options, nextApprovalId);
+        const result: PlanStepExecutionResult<unknown> = await this.executePlanned<unknown>(runId, step.id, options, nextApprovalId);
         run = result.run;
         executedStepIds.push(step.id);
         nextApprovalId = undefined;
       } catch (error) {
         if (error instanceof PlanStepApprovalRequiredError) {
-          const current = this.runs.getById(runId);
-          if (!current) throw new Error(`Plan run disappeared during execution: ${runId}`);
-          return { run: current, executedStepIds, pausedAt: { stepId: step.id, reason: "approval_required", approval: error.approval } };
+          const currentRun = this.runs.getById(runId);
+          if (!currentRun) throw new Error(`Plan run disappeared during execution: ${runId}`);
+          return { run: currentRun, executedStepIds, pausedAt: { stepId: step.id, reason: "approval_required", approval: error.approval } };
         }
         throw error;
       }
