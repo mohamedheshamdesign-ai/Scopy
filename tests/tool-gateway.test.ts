@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
-import { readFile, symlink } from "node:fs/promises";
+import { mkdir, readFile, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -100,8 +100,10 @@ test("filesystem tool blocks a symlink that points outside the workspace", async
       actorId: "agent:developer", tool: "filesystem", action: "write",
       targetPattern: "*", effect: "allow",
     });
+    // A junction requires both its target and its parent directory to exist.
+    await mkdir(workspace, { recursive: true });
+    await mkdir(outside, { recursive: true });
     const link = join(workspace, "outside-link");
-    await import("node:fs/promises").then(({ mkdir }) => mkdir(outside, { recursive: true }));
     await symlink(outside, link, "junction");
     await assert.rejects(
       gateway.execute({
