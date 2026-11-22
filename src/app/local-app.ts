@@ -61,7 +61,7 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Port must be between 1024 and 65535.");
   const token = randomBytes(32).toString("hex");
   const tasks = new TaskRepository(database); const projects = new ProjectRepository(database); const memories = new MemoryRepository(database);
-  const agents = new AgentRegistry(); const policy = new PolicyEngine(new PermissionRepository(database), config.safetyProfile); const approvals = new ApprovalService(database, policy); const plans = new PlanRepository(database); const runs = new PlanRunRepository(database);
+  const agents = new AgentRegistry(); const policy = new PolicyEngine(new PermissionRepository(database), config.safetyProfile); const approvals = new ApprovalService(database, policy); const plans = new PlanRepository(database); const runs = new PlanRunRepository(database); const approvalRunIds = new Map<string, string>();
   const server = createServer(async (request, response) => {
     try {
       if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(request.headers.host ?? "")) return send(response, 403, { error: "Localhost only." });
@@ -83,7 +83,20 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
       if (request.method === "POST" && url.pathname === "/api/delegate") { const b = await readBody(request); if (typeof b.goal !== "string" || !b.goal.trim()) return send(response, 400, { error: "Delegation goal is required." }); const ids = Array.isArray(b.agentIds) ? b.agentIds.filter((id): id is string => typeof id === "string") : []; const router = createLocalAiRouter(database); const provider = router.list()[0]; if (!provider) return send(response, 503, { error: "Local AI is not connected." }); const goal = b.goal.trim().slice(0, 6000); const context = await loadProjectContext(); return send(response, 200, await delegateToSpecialists(router, provider.id, goal, ids, context, memories.search(goal, { limit: 5 }))); }
       if (request.method === "GET" && url.pathname === "/api/approvals") return send(response, 200, approvals.listPending());
       const approval = url.pathname.match(/^\/api\/approvals\/([0-9a-f-]+)\/(approve|reject)$/i);
-      if (request.method === "POST" && approval) { const result = approval[2] === "approve" ? approvals.approve(approval[1]!, "user:local") : approvals.reject(approval[1]!, "user:local"); return send(response, 200, result); }
+      if (request.method === "POST" && approval) {
+        const id = approval[1]!;
+        if (approval[2] === "reject") { approvalRunIds.delete(id); return send(response, 200, approvals.reject(id, "user:local")); }
+        const result = approvals.approve(id, "user:local");
+        const runId = approvalRunIds.get(id);
+        if (!runId) return send(response, 200, result);
+        approvalRunIds.delete(id);
+        const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
+        new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
+        const executor = new PlanStepExecutor(runs, policy, approvals, new RuntimeEngine(database, gateway));
+        const resumed = await executor.executeReadySteps(runId, {}, id);
+        if (resumed.pausedAt?.approval) approvalRunIds.set(resumed.pausedAt.approval.id, runId);
+        return send(response, 200, { approval: result, execution: resumed });
+      }
       if (request.method === "GET" && url.pathname === "/api/plans") return send(response, 200, plans.list());
       if (request.method === "GET" && url.pathname === "/api/runs") return send(response, 200, runs.list());
       const segments = url.pathname.split("/");
@@ -95,7 +108,9 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
         new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
         const runtime = new RuntimeEngine(database, gateway);
         const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
-        return send(response, 200, await executor.executeReadySteps(segments[3]!, {}, typeof b.approvalId === "string" ? b.approvalId : undefined));
+        const result = await executor.executeReadySteps(segments[3]!, {}, typeof b.approvalId === "string" ? b.approvalId : undefined);
+        if (result.pausedAt?.approval) approvalRunIds.set(result.pausedAt.approval.id, segments[3]!);
+        return send(response, 200, result);
       }
       if (request.method === "POST" && url.pathname === "/api/plans") { const b = await readBody(request); if (typeof b.goal !== "string" || !b.goal.trim()) return send(response, 400, { error: "Plan goal is required." }); const router = createLocalAiRouter(database); const provider = router.list()[0]; if (!provider) return send(response, 503, { error: "Local AI is not connected." }); return send(response, 201, await generateDraftPlan(router, provider.id, plans, b.goal.trim().slice(0, 2000))); }
       return send(response, 404, { error: "API route not found." });
