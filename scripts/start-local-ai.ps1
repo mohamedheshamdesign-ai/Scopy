@@ -16,6 +16,8 @@ $ServerExe = Join-Path $ScopyRoot "runtime\llama.cpp\llama-server.exe"
 $CacheRoot = Join-Path $ScopyRoot "cache\huggingface\hub"
 $HFHome = Join-Path $ScopyRoot "cache\huggingface"
 $TempRoot = Join-Path $ScopyRoot "temp"
+$SecretsRoot = Join-Path $ScopyRoot "secrets"
+$ApiKeyFile = Join-Path $SecretsRoot "local-ai-api-keys.txt"
 $ModelFileName = "Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf"
 
 if (-not (Test-Path -LiteralPath $ServerExe)) {
@@ -58,7 +60,7 @@ if ($Listener) {
     throw "Port 8080 is already listening (PID(s): $($OwnerIds -join ', ')). Stop the existing server with Ctrl+C before starting another."
 }
 
-foreach ($Directory in @($HFHome, $CacheRoot, $TempRoot, (Join-Path $ScopyRoot "logs"))) {
+foreach ($Directory in @($HFHome, $CacheRoot, $TempRoot, (Join-Path $ScopyRoot "logs"), $SecretsRoot)) {
     New-Item -ItemType Directory -Path $Directory -Force | Out-Null
 }
 
@@ -73,6 +75,28 @@ $env:HUGGINGFACE_HUB_CACHE = $CacheRoot
 $env:OLLAMA_MODELS = Join-Path $ScopyRoot "models\ollama"
 $env:TMP = $TempRoot
 $env:TEMP = $TempRoot
+
+# Generate a local API key once, store it on E:, and restrict its ACL to this user and Windows administrators.
+if (-not (Test-Path -LiteralPath $ApiKeyFile)) {
+    $RandomBytes = New-Object byte[] 32
+    [Security.Cryptography.RandomNumberGenerator]::Fill($RandomBytes)
+    $GeneratedKey = [Convert]::ToBase64String($RandomBytes)
+    [System.IO.File]::WriteAllText($ApiKeyFile, $GeneratedKey, [System.Text.Encoding]::ASCII)
+}
+$ApiKey = (Get-Content -LiteralPath $ApiKeyFile -Raw).Trim()
+if (-not $ApiKey) {
+    throw "The local API key file is empty: $ApiKeyFile"
+}
+$CurrentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+& icacls.exe $SecretsRoot /inheritance:r /grant:r "${CurrentUser}:(OI)(CI)(F)" "*S-1-5-18:(OI)(CI)(F)" "*S-1-5-32-544:(OI)(CI)(F)" | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not restrict access to the Scopy secrets directory."
+}
+& icacls.exe $ApiKeyFile /inheritance:r /grant:r "${CurrentUser}:(F)" "*S-1-5-18:(F)" "*S-1-5-32-544:(F)" | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not restrict access to the Scopy local API key file."
+}
+$env:SCOPY_LOCAL_AI_API_KEY = $ApiKey
 
 # Persist only path/config values; no API keys or secrets are written.
 [Environment]::SetEnvironmentVariable("SCOPY_HOME", $ScopyRoot, "User")
@@ -92,11 +116,12 @@ $ServerArgs = @(
     "-np", "1",
     "--device", "Vulkan0",
     "--fit", "on",
-    "--fit-target", "$GpuMemoryReserveMiB"
+    "--fit-target", "$GpuMemoryReserveMiB",
+    "--api-key-file", $ApiKeyFile
 )
 
 $HelpText = (& $ServerExe --help 2>&1 | Out-String)
-foreach ($RequiredFlag in @("--device", "--fit-target")) {
+foreach ($RequiredFlag in @("--device", "--fit-target", "--api-key-file")) {
     if ($HelpText -notmatch [regex]::Escape($RequiredFlag)) {
         throw "This llama.cpp build does not expose required option $RequiredFlag. Do not launch with an unverified profile."
     }
@@ -121,6 +146,7 @@ Write-Host "Context:     $ContextSize"
 Write-Host "Sequences:   1"
 Write-Host "GPU device:  Vulkan0 (GTX 1660 Ti)"
 Write-Host "GPU reserve: $GpuMemoryReserveMiB MiB"
+Write-Host "API auth:    enabled (key file protected by Windows ACL on E:)"
 Write-Host "Speculative: $SpeculativeMode"
 Write-Host "Flash Attention: auto (backend decides; do not force it on for this Vulkan build)"
 Write-Host "KV cache:    default F16 (quantized V cache is not enabled without a supported Flash Attention path)"
