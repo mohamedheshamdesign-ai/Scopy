@@ -15,6 +15,9 @@ export class PolicyEngine {
     );
 
     if (!rule) {
+      if (request.actorId === "user:local" && request.tool === "terminal" && request.action === "run") {
+        return { effect: "approval_required", reason: "Terminal commands always require exact explicit approval.", ruleId: null };
+      }
       if (this.profile === "workspace_assist" && request.actorId === "user:local" && request.tool === "filesystem") {
         if (request.action === "read" || request.action === "list") {
           return { effect: "allow", reason: "Built-in workspace_assist profile permits workspace reads and listings.", ruleId: null };
