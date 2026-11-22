@@ -511,6 +511,43 @@ export class DashboardServer {
       return;
     }
 
+    if (method === "POST" && path === "/api/browser/requests") {
+      const input = await body(request);
+      const action = stringField(input, "browserAction", 20);
+      if (!["click", "type", "keypress"].includes(action)) throw new Error("Browser action must be click, type, or keypress.");
+      const target = this.browser.status().activeUrl;
+      if (!target) throw new Error("Open a browser page before requesting an interaction.");
+      let payload: Record<string, unknown>;
+      if (action === "click") payload = { selector: stringField(input, "selector", 500) };
+      else if (action === "type") payload = { selector: stringField(input, "selector", 500), text: stringField(input, "text", 5000) };
+      else payload = { key: stringField(input, "key", 20) };
+      json(response, 201, approvals.request({ actorId: ACTOR, tool: "browser", action, target, payload }));
+      return;
+    }
+
+    if (method === "POST" && path === "/api/browser/execute") {
+      const input = await body(request);
+      const action = stringField(input, "browserAction", 20);
+      const target = stringField(input, "target", 2048);
+      const approvalId = stringField(input, "approvalId", 36);
+      const payload = input.payload;
+      if (!["click", "type", "keypress"].includes(action) || typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+        throw new Error("A valid approved browser action and payload are required.");
+      }
+      const requestAction = { actorId: ACTOR, tool: "browser", action, target, payload: payload as Record<string, unknown> };
+      const gateway = new ToolGateway(new ExecutionGuard(this.database, policy, approvals));
+      new BrowserTool(this.browser).register(gateway);
+      const runtime = new RuntimeEngine(this.database, gateway);
+      const result = await runtime.execute(requestAction, { timeoutMs: 120000, maxOutputBytes: 100000 }, approvalId);
+      json(response, 200, result);
+      return;
+    }
+
+    if (method === "GET" && path === "/api/browser/screenshot") {
+      json(response, 200, await this.browser.screenshot());
+      return;
+    }
+
     if (method === "POST" && path === "/api/browser/open") {
       const input = await body(request);
       const url = stringField(input, "url", 2048);
