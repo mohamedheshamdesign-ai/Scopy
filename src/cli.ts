@@ -1,10 +1,9 @@
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { buildCliChatMessages } from "./ai/chat-context.js";
 import { createLocalAiRouter } from "./ai/create-local-router.js";
 import { listLocalModels } from "./ai/local-openai-provider.js";
 import { loadConfig } from "./config.js";
 import { openDatabase } from "./db/database.js";
+import { loadProjectContext } from "./project/project-context.js";
 import { MemoryRepository, type MemoryType } from "./memory/memory-repository.js";
 import { TaskNotFoundError, TaskRepository } from "./tasks/task-repository.js";
 
@@ -108,25 +107,9 @@ async function main(): Promise<void> {
           process.exitCode = 1;
           return;
         }
-        const projectDocuments: string[] = [];
-        for (const documentName of [
-          "REPOSITORY_INVENTORY.md",
-          "IMPLEMENTED_FEATURES.md",
-          "PLANNED_FEATURES.md",
-          "ARCHITECTURE.md",
-          "IMPLEMENTATION_PLAN.md",
-        ]) {
-          try {
-            projectDocuments.push(await readFile(
-              resolve(process.cwd(), "docs", documentName),
-              "utf8",
-            ));
-          } catch {
-            // Scopy remains usable when invoked outside a full source checkout.
-          }
-        }
+        const projectContext = await loadProjectContext();
         const result = await router.generate(provider.id, {
-          messages: buildCliChatMessages(prompt, projectDocuments.join("\n\n")),
+          messages: buildCliChatMessages(prompt, projectContext),
         }, {
           actorId: "user:local",
           purpose: "local CLI chat",
