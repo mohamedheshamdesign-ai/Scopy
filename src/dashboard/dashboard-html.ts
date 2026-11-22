@@ -20,6 +20,7 @@ export const dashboardHtml = String.raw`<!doctype html>
   <button data-page="agents">◉ &nbsp; Agents</button>
   <button data-page="terminal">⌁ &nbsp; Terminal</button>
   <button data-page="browser">◎ &nbsp; Browser</button>
+  <button data-page="integrations">⌘ &nbsp; Integrations</button>
   <button data-page="plans">⌘ &nbsp; Plans & Runs</button>
   <button data-page="memory">◌ &nbsp; Memory</button>
   <button data-page="approvals">◇ &nbsp; Approvals</button>
@@ -45,7 +46,23 @@ export const dashboardHtml = String.raw`<!doctype html>
  <section class="section" id="page-projects"><div class="panel"><div class="panelhead"><h2>Projects</h2></div><div class="form"><input id="projectName" placeholder="Project name"><input id="projectDescription" placeholder="Description"><button class="primary" id="addProject">Create project</button></div><div class="list" id="projectList"></div></div></section>
  <section class="section" id="page-terminal"><div class="panel"><div class="panelhead"><h2>Controlled terminal</h2><span class="pill warn">APPROVAL REQUIRED</span></div><div class="notice">Commands run without a shell, inside the configured Scopy workspace. Every command is tied to an exact one-time approval. Do not put passwords or API keys in command arguments.</div><div class="form"><select id="terminalExe"><option>powershell.exe</option><option>node</option><option>git</option><option>python</option></select><input id="terminalCwd" value="." placeholder="Working directory relative to workspace"><input id="terminalTimeout" type="number" value="30000" min="1000" max="120000" style="max-width:150px"></div><div class="form"><textarea id="terminalArgs" class="wide" placeholder='Arguments as JSON array, e.g. ["-NoProfile","-Command","Get-ChildItem"]'></textarea></div><div class="actions"><button class="primary" id="terminalRequest">Request exact approval</button><button id="terminalExecute" disabled>Execute approved command</button></div><div id="terminalState" class="detail" style="margin-top:12px"></div><pre id="terminalOutput" style="white-space:pre-wrap;overflow:auto;max-height:360px;background:#06111d;padding:12px;border-radius:9px;font-size:12px"></pre></div></section>
  <section class="section" id="page-browser"><div class="panel"><div class="panelhead"><h2>Isolated browser</h2><span class="pill warn">SEPARATE PROFILE</span></div><div class="notice">Scopy opens a separate Chrome/Edge profile under SCOPY_HOME. It does not reuse your everyday browser cookies or sessions. Page content is untrusted input; review before acting on it.</div><div class="form"><input id="browserUrl" placeholder="https://example.com"><button class="primary" id="browserOpen">Open URL</button><button id="browserRead">Read current page</button><button class="danger" id="browserClose">Close browser</button></div><div id="browserStatus" class="detail">Browser not started.</div><h3 id="browserTitle" style="font-size:14px"></h3><div id="browserPage" style="white-space:pre-wrap;max-height:55vh;overflow:auto;background:#06111d;padding:14px;border-radius:10px;font-size:12px;line-height:1.7"></div></div></section>
- <section class="section" id="page-agents"><div class="panel"><div class="panelhead"><h2>Agent registry</h2><span class="pill warn">ADVISORY MODE</span></div><p class="detail">Each specialist has a defined role. Tool execution remains centralized in Scopy's permission and approval layer.</p><div class="list" id="agentList"></div></div></section>
+ <section class="section" id="page-integrations">
+ <div class="panel"><div class="panelhead"><h2>Local MCP servers</h2><span class="pill warn">OPT-IN</span></div>
+ <div class="notice">MCP servers run as local child processes without a shell. Scopy passes only the environment variables you explicitly list. Keep credentials in PowerShell environment variables, never in server arguments or this configuration. Every external tool call requires exact approval.</div>
+ <div class="form"><input id="mcpId" placeholder="Server ID, e.g. github"><select id="mcpCommand"><option>node</option><option>python</option><option>powershell.exe</option></select><input id="mcpTimeout" type="number" value="30000" min="1000" max="120000" style="max-width:140px"></div>
+ <div class="form"><textarea id="mcpArgs" class="wide" placeholder='Command arguments as JSON array, e.g. ["E:/Scopy/workspace/mcp/github-server.js"]'></textarea></div>
+ <div class="form"><input id="mcpEnv" placeholder="Environment variable names to pass, comma-separated (e.g. GITHUB_TOKEN)"><button class="primary" id="mcpAdd">Add MCP server</button></div>
+ <div class="list" id="mcpServers"></div></div>
+ <div class="panel"><div class="panelhead"><h2>Discover and call tools</h2></div>
+ <div class="form"><select id="mcpTool" class="wide"><option value="">Load tools from a server first</option></select><button id="mcpLoad">Load tools</button></div>
+ <p id="mcpToolDescription" class="detail"></p>
+ <pre id="mcpToolSchema" style="white-space:pre-wrap;max-height:220px;overflow:auto;font-size:11px"></pre>
+ <div class="form"><textarea id="mcpArguments" class="wide" placeholder='Tool arguments as JSON object, e.g. {"query":"recent issues"}'></textarea></div>
+ <div class="actions"><button class="primary" id="mcpRequest">Request exact approval</button><button id="mcpExecute" disabled>Execute approved tool</button></div>
+ <div id="mcpState" class="detail" style="margin-top:12px"></div><pre id="mcpOutput" style="white-space:pre-wrap;max-height:320px;overflow:auto;background:#06111d;padding:12px;border-radius:9px;font-size:11px"></pre>
+ </div>
+</section>
+<section class="section" id="page-agents"><div class="panel"><div class="panelhead"><h2>Agent registry</h2><span class="pill warn">ADVISORY MODE</span></div><p class="detail">Each specialist has a defined role. Tool execution remains centralized in Scopy's permission and approval layer.</p><div class="list" id="agentList"></div></div></section>
  <section class="section" id="page-plans"><div class="panel"><div class="panelhead"><h2>Plan a goal</h2></div><div class="form"><input id="planGoal" placeholder="Describe an outcome for Scopy to plan"><button class="primary" id="createPlan">Generate plan</button></div><div class="list" id="planList"></div></div><div class="panel"><div class="panelhead"><h2>Execution runs</h2></div><div class="list" id="runList"></div></div></section>
  <section class="section" id="page-memory"><div class="panel"><div class="panelhead"><h2>Personal memory</h2><span class="muted small">User-confirmed records</span></div><div class="form"><select id="memoryType"><option>preference</option><option>semantic</option><option>project</option><option>procedural</option><option>episodic</option><option>working</option></select><input id="memoryScope" placeholder="Scope (global by default)"><input id="memoryContent" placeholder="What should Scopy remember?"><button class="primary" id="addMemory">Save memory</button></div><div class="list" id="memoryList"></div></div></section>
  <section class="section" id="page-approvals"><div class="panel"><div class="panelhead"><h2>Approval center</h2><span class="pill warn">EXPLICIT REVIEW</span></div><p class="detail">Approvals are bound to the exact actor, tool, action, target, and payload. They are one-time and cannot be reused for another action.</p><div class="list" id="approvalList"></div></div><div class="panel"><div class="panelhead"><h2>Permission rules</h2></div><div class="form"><input id="permActor" value="user:local" placeholder="Actor"><input id="permTool" placeholder="Tool"><input id="permAction" placeholder="Action"><input id="permTarget" placeholder="Target pattern"><select id="permEffect"><option value="approval_required">approval_required</option><option value="allow">allow</option><option value="deny">deny</option></select><button class="primary" id="addPermission">Save rule</button></div><div class="list" id="permissionList"></div></div></section>
@@ -58,7 +75,7 @@ const $=id=>document.getElementById(id);
 let token=location.hash.startsWith("#token=")?location.hash.slice(7):"";
 if(token){history.replaceState(null,"",location.pathname);}
 const state={data:null,lang:"en"};
-const titles={overview:"Overview",chat:"AI Workspace",tasks:"Tasks",projects:"Projects",agents:"Agents",terminal:"Terminal",browser:"Browser",plans:"Plans & Runs",memory:"Memory",approvals:"Approvals",settings:"Settings"};
+const titles={overview:"Overview",chat:"AI Workspace",tasks:"Tasks",projects:"Projects",agents:"Agents",terminal:"Terminal",browser:"Browser",integrations:"Integrations",plans:"Plans & Runs",memory:"Memory",approvals:"Approvals",settings:"Settings"};
 const api=async(path,method="GET",data)=>{const r=await fetch(path,{method,headers:{"authorization":"Bearer "+token,...(data?{"content-type":"application/json"}:{})},body:data?JSON.stringify(data):undefined});const v=await r.json().catch(()=>({error:"Invalid server response"}));if(!r.ok)throw new Error(v.error||("HTTP "+r.status));return v;};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const short=s=>String(s||"").length>110?String(s).slice(0,107)+"…":String(s||"");
@@ -105,6 +122,55 @@ function terminalPayload(){
  return {executable:$("terminalExe").value,args,workingDirectory:$("terminalCwd").value||".",timeoutMs:Number($("terminalTimeout").value||30000)};
 }
 
+
+let pendingMcp=null;
+let availableMcpTools=[];
+window.selectedMcpServer=null;
+$("mcpAdd").addEventListener("click",async()=>{
+ try{
+  const args=JSON.parse($("mcpArgs").value||"[]");
+  const passEnv=$("mcpEnv").value.split(",").map(x=>x.trim()).filter(Boolean);
+  if(!Array.isArray(args)||!args.every(x=>typeof x==="string"))throw new Error("MCP args must be a JSON array of strings.");
+  await api("/api/mcp/servers","POST",{id:$("mcpId").value,command:$("mcpCommand").value,args,passEnv,timeoutMs:Number($("mcpTimeout").value||30000)});
+  $("mcpId").value="";$("mcpArgs").value="";await refresh();showNotice("MCP server configuration saved. Credentials remain in the selected PowerShell environment variables.");
+ }catch(e){showNotice(e.message,true);}
+});
+$("mcpLoad").addEventListener("click",async()=>{
+ if(!window.selectedMcpServer){showNotice("Select Load tools beside a configured MCP server first.",true);return;}
+ try{
+  $("mcpState").textContent="Starting MCP server and discovering tools…";
+  const r=await api("/api/mcp/servers/"+window.selectedMcpServer+"/tools","POST",{});
+  availableMcpTools=r.tools||[];
+  $("mcpTool").innerHTML=availableMcpTools.map(t=>'<option value="'+esc(t.name)+'">'+esc(t.name)+'</option>').join("")||'<option value="">No tools exposed</option>';
+  const selected=availableMcpTools[0];$("mcpToolDescription").textContent=selected?.description||"";
+  $("mcpToolSchema").textContent=selected?JSON.stringify(selected.inputSchema||{},null,2):"";
+  $("mcpState").textContent="Discovered "+availableMcpTools.length+" tools from "+window.selectedMcpServer+".";
+ }catch(e){$("mcpState").textContent=e.message;showNotice(e.message,true);}
+});
+$("mcpTool").addEventListener("change",()=>{
+ const t=availableMcpTools.find(x=>x.name===$("mcpTool").value);
+ $("mcpToolDescription").textContent=t?.description||"";
+ $("mcpToolSchema").textContent=t?JSON.stringify(t.inputSchema||{},null,2):"";
+});
+$("mcpRequest").addEventListener("click",async()=>{
+ try{
+  const args=JSON.parse($("mcpArguments").value||"{}");
+  if(!args||typeof args!=="object"||Array.isArray(args))throw new Error("MCP arguments must be a JSON object.");
+  if(!window.selectedMcpServer||!$("mcpTool").value)throw new Error("Select an MCP server and tool first.");
+  pendingMcp={serverId:window.selectedMcpServer,toolName:$("mcpTool").value,arguments:args};
+  const a=await api("/api/mcp/requests","POST",pendingMcp);pendingMcp.requestId=a.id;
+  $("mcpState").textContent="Approval request "+a.id+" created. Inspect its exact arguments in Approvals.";
+  $("mcpExecute").disabled=true;await refresh();
+ }catch(e){showNotice(e.message,true);}
+});
+$("mcpExecute").addEventListener("click",async()=>{
+ if(!pendingMcp||!pendingMcp.approvalId){showNotice("Approve the exact MCP request first.",true);return;}
+ try{$("mcpExecute").disabled=true;$("mcpState").textContent="Executing approved MCP tool…";
+  const result=await api("/api/mcp/execute","POST",{...pendingMcp,approvalId:pendingMcp.approvalId});
+  $("mcpOutput").textContent=JSON.stringify(result.output,null,2);$("mcpState").textContent="MCP call completed in "+result.durationMs+" ms.";pendingMcp=null;await refresh();
+ }catch(e){$("mcpState").textContent=e.message;showNotice(e.message,true);}finally{$("mcpExecute").disabled=true;}
+});
+
 $("browserOpen").addEventListener("click",async()=>{try{$("browserStatus").textContent="Starting isolated browser…";const r=await api("/api/browser/open","POST",{url:$("browserUrl").value});$("browserStatus").textContent=r.url;$("browserTitle").textContent=r.title;$("browserPage").textContent=r.text;}catch(e){showNotice(e.message,true);$("browserStatus").textContent=e.message;}});
 $("browserRead").addEventListener("click",async()=>{try{const r=await api("/api/browser/read");$("browserStatus").textContent=r.url;$("browserTitle").textContent=r.title;$("browserPage").textContent=r.text;}catch(e){showNotice(e.message,true);}});
 $("browserClose").addEventListener("click",async()=>{try{await api("/api/browser/close","POST",{});$("browserStatus").textContent="Browser closed.";$("browserPage").textContent="";}catch(e){showNotice(e.message,true);}});
@@ -129,6 +195,8 @@ if(b.dataset.execute){const r=await api("/api/runs/"+b.dataset.execute+"/execute
 if(b.dataset.approval){await api("/api/approvals/"+b.dataset.approval+"/review","POST",{decision:b.dataset.decision});if(pendingTerminal&&b.dataset.decision==="approved"&&pendingTerminal.requestId===b.dataset.approval){pendingTerminal.approvalId=b.dataset.approval;$("terminalExecute").disabled=false;$("terminalState").textContent="Exact command approved. You can execute it now.";}await refresh();}
 if(b.dataset.archive){await api("/api/memories/"+b.dataset.archive+"/archive","POST",{});await refresh();}
 if(b.dataset.permissionDelete){await api("/api/permissions/"+b.dataset.permissionDelete,"DELETE");await refresh();}
+if(b.dataset.mcpTools){window.selectedMcpServer=b.dataset.mcpTools;go("integrations");$("mcpState").textContent="Selected server: "+window.selectedMcpServer;const r=await api("/api/mcp/servers/"+window.selectedMcpServer+"/tools","POST",{});availableMcpTools=r.tools||[];$("mcpTool").innerHTML=availableMcpTools.map(t=>'<option value="'+esc(t.name)+'">'+esc(t.name)+'</option>').join("")||'<option value="">No tools exposed</option>';const t=availableMcpTools[0];$("mcpToolDescription").textContent=t?.description||"";$("mcpToolSchema").textContent=t?JSON.stringify(t.inputSchema||{},null,2):"";$("mcpState").textContent="Discovered "+availableMcpTools.length+" tools.";}
+if(b.dataset.mcpRemove){await api("/api/mcp/servers/"+b.dataset.mcpRemove,"DELETE");await refresh();}
 }catch(err){showNotice(err.message,true);}});
 $("lang").addEventListener("click",()=>{const ar=document.documentElement.lang!=="ar";document.documentElement.lang=ar?"ar":"en";document.documentElement.dir=ar?"rtl":"ltr";$("lang").textContent=ar?"English":"العربية";showNotice(ar?"الواجهة في وضع RTL. أسماء الأقسام والأوامر التقنية ستظل بالإنجليزية.":"Interface returned to English.");});
 if(!token){showNotice("Dashboard token is missing. Start Scopy with npm run dev -- dashboard and open the exact URL printed in PowerShell.",true);}else{refresh();}
