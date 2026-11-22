@@ -11,7 +11,7 @@ This document describes code presence, not a claim that the current local checko
 |---|---|---|---|
 | Node.js/TypeScript CLI entry point | Implemented | `src/cli.ts`, `package.json` | CLI exposes health, task, AI, benchmark, and memory commands. |
 | Local application paths/config | Partial | `src/config.ts` | Resolves home/data/database paths; no schema validation or advanced configuration validation is present in this file. |
-| SQLite connection and versioned migrations | Implemented | `src/db/database.ts` | Migrations v1-v5 create tasks/audit, permissions/approvals, execution/checkpoints, memory, and orchestrator plan tables. |
+| SQLite connection and versioned migrations | Implemented | `src/db/database.ts` | Migrations v1-v6 create tasks/audit, permissions/approvals, execution/checkpoints, memory, orchestrator plans, and orchestrator run/step/checkpoint tables. |
 | Task create/read/list/complete repository | Implemented | `src/tasks/task-repository.ts` | `tests/task-repository.test.ts`; no separate projects repository is present in the inventory. |
 | Task audit events | Partial | `src/tasks/task-repository.ts`, `src/db/database.ts` | Task creation/completion emit audit events; do not assume every system action is audited unless its code proves it. |
 | Permission rules and policy decisions | Implemented | `src/permissions/policy-engine.ts`, `src/permissions/permission-repository.ts`, `src/permissions/types.ts` | `tests/permissions.test.ts`; default-deny and scoped rules are described in implementation plan and code. |
@@ -28,10 +28,11 @@ This document describes code presence, not a claim that the current local checko
 | Live tracked-file inventory for project chat | Implemented | `src/project/project-context.ts` | `tests/project-context.test.ts`; uses fixed read-only `git ls-files` and falls back to the checked-in inventory snapshot when Git is unavailable. |
 | CLI chat project-context injection with evidence rules | Implemented, limited | `src/ai/chat-context.ts`, `src/cli.ts` | `tests/chat-context.test.ts`; loads live tracked paths plus implemented/planned feature records, architecture, and implementation plan. Context is capped at 24,000 characters. |
 | Local-model draft planning, validation, persistence, and manual review | Implemented, limited | `src/orchestrator/plan.ts`, `src/orchestrator/planner.ts`, `src/orchestrator/plan-repository.ts`, `src/cli.ts`, `src/db/database.ts` | `tests/orchestrator.test.ts`; creates JSON-validated plans with bounded steps, risk labels, dependency validation, cycle detection, persisted draft/approved/rejected states, and audit events. Approval is a review record only; it does not authorize or execute tools. |
+| Orchestrator run lifecycle and step tracking | Implemented, manual-only | `src/orchestrator/run-repository.ts`, `src/db/database.ts`, `src/cli.ts` | `tests/orchestrator-run.test.ts`; approved plans can start persisted runs; dependency-gated ready/running/succeeded/failed/skipped states, serial step transitions, explicit retry after a recorded failure, cancellation, audit events, and JSON snapshots are implemented. No tools or external actions are executed by these commands. Abrupt-process recovery of an in-flight step is not automatic; it is deliberately not replayed because side effects may be uncertain. |
 
 ## Not implemented or not evidenced by the current tracked source tree
 
-- Orchestrator execution/run lifecycle, step execution, retries, and checkpoint recovery.
+- Automated execution of plan steps through registered tools, including per-action policy/approval integration and automatic crash recovery. Current run commands only track manual step transitions and persist inspectable snapshots; they do not execute tools.
 - Agent registry and multi-agent delegation.
 - Specialist agent implementations (Research, Developer, Business, Design, Marketing, Operations).
 - Browser automation.
