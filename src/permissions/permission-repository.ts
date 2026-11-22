@@ -61,19 +61,26 @@ export class PermissionRepository {
       WHERE actor_id IN (?, '*')
         AND tool_name IN (?, '*')
         AND action_name IN (?, '*')
-        AND target_pattern IN (?, '*')
-    `).all(actorId, tool, action, target) as PermissionRuleRow[];
+    `).all(actorId, tool, action) as PermissionRuleRow[];
 
-    if (rows.length === 0) return null;
+    const matching = rows.filter((row) =>
+      row.target_pattern === "*" ||
+      (row.target_pattern.endsWith("*") &&
+        target.startsWith(row.target_pattern.slice(0, -1))) ||
+      row.target_pattern === target
+    );
+    if (matching.length === 0) return null;
 
     const score = (row: PermissionRuleRow): number =>
-      Number(row.actor_id !== "*") +
-      Number(row.tool_name !== "*") +
-      Number(row.action_name !== "*") +
-      Number(row.target_pattern !== "*");
+      Number(row.actor_id !== "*") * 1_000_000 +
+      Number(row.tool_name !== "*") * 100_000 +
+      Number(row.action_name !== "*") * 10_000 +
+      (row.target_pattern === "*" ? 0 :
+        row.target_pattern.endsWith("*") ? row.target_pattern.length :
+          10_000 + row.target_pattern.length);
 
-    const bestScore = Math.max(...rows.map(score));
-    const best = rows.filter((row) => score(row) === bestScore);
+    const bestScore = Math.max(...matching.map(score));
+    const best = matching.filter((row) => score(row) === bestScore);
     const selected = best.find((row) => row.effect === "deny") ?? best[0];
     return selected ? mapRule(selected) : null;
   }
