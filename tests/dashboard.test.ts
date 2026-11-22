@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer, request as httpRequest } from "node:http";
+import { Script } from "node:vm";
+import { dashboardHtml } from "../src/dashboard/dashboard-html.js";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -90,4 +92,11 @@ test("dashboard uses loopback auth, issues an HttpOnly session, and serves a PWA
     database.close();
     rmSync(home, { recursive: true, force: true });
   }
+});
+
+
+test("dashboard inline client script parses as JavaScript", () => {
+  const match = dashboardHtml.match(/<script>([\\s\\S]*?)<\\/script>/);
+  assert.ok(match?.[1], "dashboard should contain its inline client script");
+  assert.doesNotThrow(() => new Script(match[1]!));
 });
