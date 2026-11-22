@@ -17,7 +17,7 @@ const PLANNER_SYSTEM_PROMPT = [
   "  }]",
   "}",
   "Use the smallest useful sequence, normally 1 to 6 steps. Simple file tasks should use one action step, plus a verification step only when useful. Do not invent navigation, changing-directory, or other ceremonial steps. Use unique IDs such as step-1, step-2.",
-  "The action field is optional. When included, use tool=filesystem and one action: read, list, mkdir, or write. Read/list/mkdir actions contain only tool, action, and target; write also contains payload.content as plain text. Use target='.' only to list the workspace root. Never include an action for unsupported or manual work.",
+  "The action field is optional. Supported actions are filesystem read/list/mkdir/write and browser open. Browser open uses only tool=browser, action=open, and target as a public http/https URL. Read/list/mkdir actions contain only tool, action, and target; write also contains payload.content as plain text. Use target='.' only to list the workspace root. Never include an action for unsupported or manual work.",
   "Dependencies must reference existing step IDs. Prefer dependencies on earlier steps.",
   "Risk must be low, medium, or high. Risk is an estimate, not an authorization decision.",
   "Do not claim that any action has been performed. Do not invent access, files, integrations, or facts.",
