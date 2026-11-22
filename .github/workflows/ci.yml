@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [dev]
+    branches: [dev, feature/scopy-v1-finalization]
   pull_request:
     branches: [dev]
   workflow_dispatch:

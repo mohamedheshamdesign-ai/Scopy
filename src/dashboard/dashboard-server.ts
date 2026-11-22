@@ -29,6 +29,7 @@ import { PlanStepExecutor } from "../orchestrator/step-executor.js";
 import { BackupService } from "../backup/backup-service.js";
 import { LocalBrowserSession } from "../browser/browser-session.js";
 import { dashboardHtml } from "./dashboard-html.js";
+import { searchWeb } from "../research/web-research.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
 const ACTOR = "user:local";
@@ -247,6 +248,13 @@ export class DashboardServer {
     const policy = new PolicyEngine(permissions, this.config.safetyProfile);
     const approvals = new ApprovalService(this.database, policy);
 
+    if (method === "POST" && path === "/api/research") {
+      const input = await body(request);
+      const query = stringField(input, "query", 400);
+      json(response, 200, await searchWeb(query, 8));
+      return;
+    }
+
     if (method === "GET" && path === "/api/state") {
       const counts = {
         tasks: (this.database.prepare("SELECT COUNT(*) AS n FROM tasks WHERE status != 'completed'").get() as { n: number }).n,
@@ -373,10 +381,12 @@ export class DashboardServer {
     if (method === "POST" && path === "/api/plans") {
       const input = await body(request);
       const goal = stringField(input, "goal", 2000);
+      const agentId = typeof input.agentId === "string" ? input.agentId : "assistant";
+      const agent = new AgentRegistry().get(agentId);
       const router = createLocalAiRouter(this.database);
       const provider = router.list()[0];
       if (!provider) throw new Error("No local AI provider is configured.");
-      json(response, 201, await generateDraftPlan(router, provider.id, plans, goal));
+      json(response, 201, await generateDraftPlan(router, provider.id, plans, goal, agent.name + ": " + agent.description + "\n" + agent.systemPrompt));
       return;
     }
 
@@ -500,6 +510,46 @@ export class DashboardServer {
 
     if (method === "POST" && path === "/api/browser/start") {
       json(response, 200, await this.browser.start());
+      return;
+    }
+
+    if (method === "POST" && path === "/api/browser/requests") {
+      const input = await body(request);
+      const action = stringField(input, "browserAction", 20);
+      if (!["click", "type", "keypress"].includes(action)) throw new Error("Browser action must be click, type, or keypress.");
+      const target = this.browser.status().activeUrl;
+      if (!target) throw new Error("Open a browser page before requesting an interaction.");
+      let payload: Record<string, unknown>;
+      if (action === "click") payload = { selector: stringField(input, "selector", 500) };
+      else if (action === "type") payload = { selector: stringField(input, "selector", 500), text: stringField(input, "text", 5000) };
+      else payload = { key: stringField(input, "key", 20) };
+      const matchingRule = permissions.findMatching(ACTOR, "browser", action, target);
+      if (!matchingRule) permissions.setRule({ actorId: ACTOR, tool: "browser", action, targetPattern: target, effect: "approval_required" });
+      else if (matchingRule.effect !== "approval_required") throw new Error("An existing browser permission rule does not require approval. Review it in Settings before proceeding.");
+      json(response, 201, approvals.request({ actorId: ACTOR, tool: "browser", action, target, payload }));
+      return;
+    }
+
+    if (method === "POST" && path === "/api/browser/execute") {
+      const input = await body(request);
+      const action = stringField(input, "browserAction", 20);
+      const target = stringField(input, "target", 2048);
+      const approvalId = stringField(input, "approvalId", 36);
+      const payload = input.payload;
+      if (!["click", "type", "keypress"].includes(action) || typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+        throw new Error("A valid approved browser action and payload are required.");
+      }
+      const requestAction = { actorId: ACTOR, tool: "browser", action, target, payload: payload as Record<string, unknown> };
+      const gateway = new ToolGateway(new ExecutionGuard(this.database, policy, approvals));
+      new BrowserTool(this.browser).register(gateway);
+      const runtime = new RuntimeEngine(this.database, gateway);
+      const result = await runtime.execute(requestAction, { timeoutMs: 120000, maxOutputBytes: 100000 }, approvalId);
+      json(response, 200, result);
+      return;
+    }
+
+    if (method === "GET" && path === "/api/browser/screenshot") {
+      json(response, 200, await this.browser.screenshot());
       return;
     }
 
@@ -632,8 +682,10 @@ export class DashboardServer {
         if (Boolean(automationId) === Boolean(name)) throw new Error("Provide exactly one Automation ID or exact control name.");
         payload = automationId ? { automationId } : { name };
         if (action === "set_value") payload.value = stringField(input, "value", 10000);
+      } else if (action === "screenshot") {
+        payload = {};
       } else {
-        throw new Error("Computer action must be snapshot, invoke, or set_value.");
+        throw new Error("Computer action must be snapshot, invoke, set_value, or screenshot.");
       }
       json(response, 201, approvals.request({
         actorId: ACTOR, tool: "computer", action, target: windowTitle, payload,
@@ -652,7 +704,7 @@ export class DashboardServer {
       const gateway = new ToolGateway(new ExecutionGuard(this.database, policy, approvals));
       new WindowsComputerTool().register(gateway);
       const runtime = new RuntimeEngine(this.database, gateway);
-      const result = await runtime.execute(requestAction, { timeoutMs: 30000, maxOutputBytes: 65536 }, approvalId);
+      const result = await runtime.execute(requestAction, { timeoutMs: 30000, maxOutputBytes: action === "screenshot" ? 1_048_576 : 65536 }, approvalId);
       json(response, 200, result);
       return;
     }

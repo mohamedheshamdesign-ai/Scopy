@@ -50,6 +50,8 @@ Build small, testable vertical slices. Every consequential action must pass the 
 
 ## Phase 3 — AI routing and memory
 
+1. [x] User-initiated public web search through the dashboard. Only the query is sent to the search provider; local memory and workspace content are not attached.
+
 1. [x] Provider interface and capability declarations.
 2. [x] Loopback-only OpenAI-compatible local provider with health and non-streaming chat.
 3. [x] Explicit cloud egress gate; no cloud provider or silent cloud fallback is enabled.
@@ -75,25 +77,25 @@ Build small, testable vertical slices. Every consequential action must pass the 
 7. [x] Built-in advisory-only profiles: assistant, brand designer, business operator, developer, research analyst, marketing strategist, and project manager. They use the local model and relevant memory but have no tools.
 8. [x] Explicit manual recovery of one interrupted in-flight step after the user confirms the prior process has stopped. Side effects remain unknown; recovery never retries automatically.
 9. [ ] Independent multi-agent delegation, inter-agent messaging, and independent agent work queues. A sequential advisory team-synthesis endpoint exists in the local dashboard.
-10. [ ] Tool-enabled Research and Developer agents, followed by other specialists, with independent scoped capabilities. Planner can currently propose only typed filesystem, browser-open, and bounded terminal actions.
+10. [~] Specialist-guided plan generation is available in the dashboard. Tool-enabled Research and Developer agents with independent scoped capabilities remain deferred; agents do not receive direct tool authority.
 
 **Current limits:** cancellation is permitted only between steps; an in-flight step cannot be marked skipped while its handler may still be running. Stop the prior process and use explicit interrupted-run recovery before deciding whether to retry. Guarded plan execution registers filesystem, isolated browser navigation/text extraction, and a bounded terminal adapter. Browser and terminal actions require exact one-time approval by default. Specialist profiles remain advisory-only; the dashboard can run two or three specialists sequentially and synthesize their advice, but agents do not independently invoke tools. Unsupported plan steps remain manual. Terminal process isolation is not OS-level and spawned descendants may outlive the direct process timeout. Browser actions do not reuse the normal browser profile or support clicks/forms/downloads.
 
 ## Phase 5 — Browser and computer control
 
-1. [x] Isolated Chromium/Edge launch, URL navigation, and bounded visible-text extraction through a dedicated profile. Interactive browser actions remain open.
-2. [ ] Domain, download, and session controls.
-3. [x] Initial Windows UI Automation adapter behind the tool gateway: inspect controls, invoke a uniquely matched control, and set a value.
-4. [x] Exact one-time approval for each computer action.
-5. [ ] Screenshot/evidence capture, coordinate/keyboard input, broader application compatibility, and robust recovery.
+1. [x] Isolated Chromium/Edge launch, public URL navigation, bounded visible-text extraction, CSS-selector click/type, and allowlisted keypresses through a dedicated profile.
+2. [~] Top-level public URL validation, private/reserved address rejection, download denial, and a separate profile. Full redirect/subresource network isolation and account/session controls remain open.
+3. [x] Windows UI Automation adapter behind the tool gateway: inspect controls, invoke a uniquely matched control, set a value, and capture a bounded window screenshot.
+4. [x] Exact one-time approval for each consequential browser and computer action.
+5. [ ] Coordinate-based input, unrestricted keyboard shortcuts, broader application compatibility, and robust recovery.
 
 **Acceptance:** browser research works in isolation; consequential actions remain approval-gated; desktop actions are logged and recoverable.
 
 ## Phase 6 — Workspace and integrations
 
 1. [x] Installable local PWA workspace with standalone display mode and local session cookie. Native desktop packaging and process lifecycle remain open.
-2. [x] Initial project/task/run/memory/approval/permission/audit dashboard views.
-3. [ ] Provider and permission settings UI.
+2. [x] Initial project/task/run/memory/approval/permission/audit dashboard views plus user-initiated public web search.
+3. [~] Basic permission rule editor exists; provider configuration and comprehensive settings remain open.
 4. [x] Initial local stdio MCP integration bridge with explicit environment-variable pass-through and exact approval for each tool call.
    [ ] Built-in OAuth flows, remote HTTP MCP transports, persistent MCP server lifecycle, and provider-specific integration UX.
 5. [x] Backup restore with schema-version validation, staged-file verification, atomic replacement, and rollback protection. A broader application upgrade workflow remains open.
