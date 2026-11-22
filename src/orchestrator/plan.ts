@@ -3,7 +3,9 @@ export type PlanStatus = "draft" | "approved" | "rejected";
 
 export type PlanAction =
   | { readonly tool: "filesystem"; readonly action: "read" | "list" | "mkdir"; readonly target: string }
-  | { readonly tool: "filesystem"; readonly action: "write"; readonly target: string; readonly payload: { readonly content: string } };
+  | { readonly tool: "filesystem"; readonly action: "write"; readonly target: string; readonly payload: { readonly content: string } }
+  | { readonly tool: "terminal"; readonly action: "run"; readonly target: string; readonly payload: { readonly executable: string; readonly args: readonly string[]; readonly timeoutMs: number } }
+  | { readonly tool: "browser"; readonly action: "open"; readonly target: string };
 
 export interface PlanStepDraft {
   readonly id: string;
@@ -44,24 +46,70 @@ function boundedString(value: unknown, field: string, max: number): string {
 }
 
 export function validatePlanAction(value: unknown, stepId: string): PlanAction {
-  if (!record(value)) throw new Error(`Plan step ${stepId} action must be an object.`);
-  if (value.tool !== "filesystem") throw new Error(`Plan step ${stepId} uses an unsupported tool.`);
-  if (value.action !== "read" && value.action !== "write" && value.action !== "list" && value.action !== "mkdir") throw new Error(`Plan step ${stepId} filesystem action must be read, list, mkdir, or write.`);
+  if (!record(value)) throw new Error("Plan step " + stepId + " action must be an object.");
+  if (value.tool === "browser") {
+    if (value.action !== "open" || Object.keys(value).some((key) => !["tool", "action", "target"].includes(key))) {
+      throw new Error("Plan step " + stepId + " browser action must be an open action with only a target URL.");
+    }
+    const target = boundedString(value.target, "step " + stepId + " browser URL", 2048);
+    let url: URL;
+    try { url = new URL(target); } catch { throw new Error("Plan step " + stepId + " browser target must be a valid URL."); }
+    if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) {
+      throw new Error("Plan step " + stepId + " browser URL must use http/https and contain no embedded credentials.");
+    }
+    return { tool: "browser", action: "open", target: url.toString() };
+  }
+
+  if (value.tool === "terminal") {
+    if (value.action !== "run" || Object.keys(value).some((key) => !["tool", "action", "target", "payload"].includes(key))) {
+      throw new Error("Plan step " + stepId + " terminal action must be a run action.");
+    }
+    const target = boundedString(value.target, "step " + stepId + " terminal working directory", 240);
+    const segments = target.split("/");
+    if (target.startsWith("/") || target.includes("\\") || target.includes(":") ||
+        target.includes(String.fromCharCode(0)) ||
+        (target !== "." && segments.some((segment) => !segment || segment === "." || segment === ".."))) {
+      throw new Error("Plan step " + stepId + " terminal working directory must be workspace-relative.");
+    }
+    if (!record(value.payload) || Object.keys(value.payload).some((key) => !["executable", "args", "timeoutMs"].includes(key))) {
+      throw new Error("Plan step " + stepId + " terminal payload is invalid.");
+    }
+    const executable = value.payload.executable;
+    const allowed = ["node", "node.exe", "git", "git.exe", "python", "python.exe", "powershell.exe"];
+    if (typeof executable !== "string" || !allowed.includes(executable.toLowerCase())) {
+      throw new Error("Plan step " + stepId + " terminal executable is not allowed.");
+    }
+    const args = value.payload.args;
+    if (!Array.isArray(args) || args.length > 100 ||
+        !args.every((arg) => typeof arg === "string" && arg.length <= 4096 && !arg.includes(String.fromCharCode(0)))) {
+      throw new Error("Plan step " + stepId + " terminal args must be an array of at most 100 bounded strings.");
+    }
+    const timeoutMs = value.payload.timeoutMs ?? 30000;
+    if (typeof timeoutMs !== "number" || !Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 120000) {
+      throw new Error("Plan step " + stepId + " terminal timeout must be between 1000 and 120000 milliseconds.");
+    }
+    return { tool: "terminal", action: "run", target, payload: { executable, args, timeoutMs } };
+  }
+
+  if (value.tool !== "filesystem") throw new Error("Plan step " + stepId + " uses an unsupported tool.");
+  if (value.action !== "read" && value.action !== "write" && value.action !== "list" && value.action !== "mkdir") {
+    throw new Error("Plan step " + stepId + " filesystem action must be read, write, list, or mkdir.");
+  }
   const allowedKeys = value.action === "write" ? ["tool", "action", "target", "payload"] : ["tool", "action", "target"];
-  if (Object.keys(value).some((key) => !allowedKeys.includes(key))) throw new Error(`Plan step ${stepId} action contains unsupported fields.`);
-  const target = boundedString(value.target, `step ${stepId} action target`, 240);
+  if (Object.keys(value).some((key) => !allowedKeys.includes(key))) throw new Error("Plan step " + stepId + " action contains unsupported fields.");
+  const target = boundedString(value.target, "step " + stepId + " action target", 240);
   const segments = target.split("/");
   const workspaceRootListing = value.action === "list" && target === ".";
   if (target.startsWith("/") || target.includes("\\") || target.includes(":") ||
       target.includes(String.fromCharCode(0)) || (!workspaceRootListing && segments.some((segment) => !segment || segment === "." || segment === ".."))) {
-    throw new Error(`Plan step ${stepId} action target must be a safe workspace-relative path using forward slashes.`);
+    throw new Error("Plan step " + stepId + " action target must be a safe workspace-relative path using forward slashes.");
   }
   if (value.action !== "write") return { tool: "filesystem", action: value.action, target };
   if (!record(value.payload) || typeof value.payload.content !== "string" ||
       Object.keys(value.payload).some((key) => key !== "content")) {
-    throw new Error(`Plan step ${stepId} write action requires only payload.content as a string.`);
+    throw new Error("Plan step " + stepId + " write action requires only payload.content as a string.");
   }
-  if (value.payload.content.length > 16_384) throw new Error(`Plan step ${stepId} write content cannot exceed 16384 characters.`);
+  if (value.payload.content.length > 16_384) throw new Error("Plan step " + stepId + " write content cannot exceed 16384 characters.");
   return { tool: "filesystem", action: "write", target, payload: { content: value.payload.content } };
 }
 
