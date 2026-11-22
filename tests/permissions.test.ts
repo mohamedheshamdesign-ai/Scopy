@@ -151,3 +151,20 @@ test("a more specific tool-and-action deny beats a broad actor allow", async () 
     }).effect, "deny");
   });
 });
+
+test("approval_required wins over an equally specific allow rule", async () => {
+  await withServices(({ rules, policy }) => {
+    rules.setRule({
+      actorId: "agent:operations", tool: "email", action: "send",
+      effect: "allow",
+    });
+    rules.setRule({
+      actorId: "agent:operations", tool: "email", action: "send",
+      effect: "approval_required",
+    });
+    assert.equal(policy.evaluate({
+      actorId: "agent:operations", tool: "email", action: "send",
+      target: "contact:customer",
+    }).effect, "approval_required");
+  });
+});
