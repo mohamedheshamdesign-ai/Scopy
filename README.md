@@ -198,7 +198,7 @@ The dashboard provides a local overview, assistant/specialist chat, task and pro
 
 ### Controlled terminal
 
-The local dashboard includes a constrained terminal action. It launches only `node`, `git`, `python`, or `powershell.exe` as a direct child process (no shell), requires an exact one-time approval by default, confines the working directory to the configured Scopy workspace, limits arguments, execution time (up to two minutes), and combined output (64 KiB). A process that spawns detached child processes may outlive the direct child timeout; this is not an OS-level sandbox. Never pass credentials in command-line arguments.
+The local dashboard includes a constrained terminal action. It launches only `node`, `git`, `python`, or `powershell.exe` as a direct child process (no shell), requires an exact one-time approval by default, confines the working directory to the configured Scopy workspace, limits arguments, execution time (up to two minutes), and combined output (48 KiB). A process that spawns detached child processes may outlive the direct child timeout; this is not an OS-level sandbox. Never pass credentials in command-line arguments.
 
 
 
