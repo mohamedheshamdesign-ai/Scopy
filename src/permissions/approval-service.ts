@@ -9,6 +9,7 @@ interface ApprovalRow {
   tool_name: string;
   action_name: string;
   target: string;
+  action_json: string;
   action_hash: string;
   status: ApprovalStatus;
   requested_at: string;
@@ -58,6 +59,7 @@ function mapApproval(row: ApprovalRow): ApprovalRequest {
     tool: row.tool_name,
     action: row.action_name,
     target: row.target,
+    payload: JSON.parse(row.action_json) as { payload: Record<string, unknown> }.payload,
     actionHash: row.action_hash,
     status: row.status,
     requestedAt: row.requested_at,
