@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { loadConfig } from "../src/config.js";
+import { ScopyLogger } from "../src/logging/scopy-logger.js";
 import { openDatabase } from "../src/db/database.js";
 import { ApprovalService } from "../src/permissions/approval-service.js";
 import { ExecutionGuard, PermissionDeniedError } from "../src/permissions/execution-guard.js";
@@ -198,4 +199,43 @@ test("executePlanned resolves the saved action and still requires exact tool app
     assert.equal((result.execution.output as { target: string }).target, "execution-check.txt");
     assert.equal(approvals.getById(approvalId)?.status, "consumed");
   });
+});
+
+
+test("guarded step execution emits structured metadata without logging file content", async () => {
+  const logHome = mkdtempSync(join(tmpdir(), "scopy-execution-log-test-"));
+  try {
+    await withExecutor(async ({ plans, runs, rules, approvals, runtime, gateway }) => {
+      const plan = plans.create("Write a private note", {
+        summary: "Write one file through the filesystem tool.",
+        steps: [{
+          id: "step-1", title: "Write private note",
+          description: "Write a test file.",
+          expectedOutput: "The file is written.",
+          risk: "low", dependsOn: [],
+          action: {
+            tool: "filesystem", action: "write", target: "private.txt",
+            payload: { content: "NEVER_LOG_THIS_PRIVATE_CONTENT" },
+          },
+        }],
+      });
+      plans.review(plan.id, "approved", "user:local");
+      const runId = runs.start(plan.id, "user:local").id;
+      rules.setRule({
+        actorId: "user:local", tool: "filesystem", action: "write",
+        targetPattern: "*", effect: "allow",
+      });
+      gateway.register("filesystem", "Logging test adapter", (request) => ({ written: request.target }));
+      const logger = new ScopyLogger(join(logHome, "logs"));
+      const executor = new PlanStepExecutor(runs, new PolicyEngine(rules), approvals, runtime, logger);
+      const result = await executor.executePlanned(runId, "step-1");
+      assert.equal(result.run.status, "succeeded");
+      const log = readFileSync(join(logHome, "logs", "scopy.log"), "utf8");
+      assert.ok(log.includes("plan.step.execution.started"));
+      assert.ok(log.includes("plan.step.execution.succeeded"));
+      assert.ok(!log.includes("NEVER_LOG_THIS_PRIVATE_CONTENT"));
+    });
+  } finally {
+    rmSync(logHome, { recursive: true, force: true });
+  }
 });

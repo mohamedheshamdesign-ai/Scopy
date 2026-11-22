@@ -6,6 +6,7 @@ import type { RuntimeOptions, RuntimeResult } from "../runtime/runtime-engine.js
 import { RuntimeEngine } from "../runtime/runtime-engine.js";
 import { PlanRunRepository, type PlanRun } from "./run-repository.js";
 import { resolvePlanAction } from "./action-resolver.js";
+import type { ScopyLogger } from "../logging/scopy-logger.js";
 
 export class PlanStepApprovalRequiredError extends ApprovalRequiredError {
   constructor(readonly approval: ApprovalRequest) {
@@ -25,6 +26,7 @@ export class PlanStepExecutor {
     private readonly policy: PolicyEngine,
     private readonly approvals: ApprovalService,
     private readonly runtime: RuntimeEngine,
+    private readonly logger?: ScopyLogger,
   ) {}
 
   async executePlanned<T = unknown>(runId: string, stepId: string, options: RuntimeOptions = {}, approvalId?: string): Promise<PlanStepExecutionResult<T>> {
@@ -55,11 +57,14 @@ export class PlanStepExecutor {
 
     const decision = this.policy.evaluate(request);
     if (decision.effect === "deny") {
+      this.logger?.warn("plan.step.execution.denied", { runId, stepId, tool: request.tool, action: request.action, target: request.target });
       throw new PermissionDeniedError(decision.reason);
     }
     if (decision.effect === "approval_required") {
       if (!approvalId) {
-        throw new PlanStepApprovalRequiredError(this.approvals.request(request));
+        const approval = this.approvals.request(request);
+        this.logger?.info("plan.step.approval.required", { runId, stepId, approvalId: approval.id, tool: request.tool, action: request.action, target: request.target });
+        throw new PlanStepApprovalRequiredError(approval);
       }
       const approval = this.approvals.getById(approvalId);
       if (
@@ -76,11 +81,13 @@ export class PlanStepExecutor {
     }
 
     this.runs.startStep(runId, stepId, true);
+    this.logger?.info("plan.step.execution.started", { runId, stepId, tool: request.tool, action: request.action, target: request.target });
     let execution: RuntimeResult<T>;
     try {
       execution = await this.runtime.execute<T>(request, options, approvalId);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown tool execution error.";
+      this.logger?.error("plan.step.execution.failed", { runId, stepId, tool: request.tool, action: request.action, target: request.target, errorName: error instanceof Error ? error.name : "UnknownError" });
       const current = this.runs.getById(runId);
       if (current?.status === "running" && current.steps.find((item) => item.id === stepId)?.status === "running") {
         this.runs.failStep(runId, stepId, message.slice(0, 4_000) || "Tool execution failed.");
@@ -92,9 +99,8 @@ export class PlanStepExecutor {
     const result = serializedOutput.length > 3_900
       ? `${serializedOutput.slice(0, 3_900)}…[truncated]`
       : serializedOutput;
-    return {
-      run: this.runs.completeStep(runId, stepId, result, true),
-      execution,
-    };
+    const completedRun = this.runs.completeStep(runId, stepId, result, true);
+    this.logger?.info("plan.step.execution.succeeded", { runId, stepId, executionId: execution.runId, durationMs: execution.durationMs });
+    return { run: completedRun, execution };
   }
 }

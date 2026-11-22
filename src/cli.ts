@@ -476,7 +476,7 @@ async function main(): Promise<void> {
             const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
             new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
             const runtime = new RuntimeEngine(database, gateway);
-            const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
+            const executor = new PlanStepExecutor(runs, policy, approvals, runtime, logger);
             try {
               const result = await executor.executePlanned(runId, stepId, {}, details[0]);
               console.log(JSON.stringify(result, null, 2));
@@ -518,7 +518,7 @@ async function main(): Promise<void> {
           const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
           new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
           const runtime = new RuntimeEngine(database, gateway);
-          const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
+          const executor = new PlanStepExecutor(runs, policy, approvals, runtime, logger);
           const result = await executor.execute(runId, stepId, {
             actorId: existingRun.startedBy, tool, action, target, payload,
           }, {}, approvalId);
