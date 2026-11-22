@@ -139,9 +139,9 @@ export class WindowsComputerTool {
       }, 20_000);
       const collect = (chunk: Buffer, stream: "stdout" | "stderr"): void => {
         size += chunk.length;
-        if (size > 64 * 1024) {
+        if (size > 48 * 1024) {
           child.kill();
-          finish(new Error("Windows computer action output exceeded 64 KiB."));
+          finish(new Error("Windows computer action output exceeded 48 KiB."));
           return;
         }
         if (stream === "stdout") stdout += chunk.toString("utf8");
