@@ -1,4 +1,4 @@
-export const dashboardHtml = String.raw\`<!doctype html>
+export const dashboardHtml = String.raw`<!doctype html>
 <html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -107,4 +107,4 @@ $("lang").addEventListener("click",()=>{const ar=document.documentElement.lang!=
 if(!token){showNotice("Dashboard token is missing. Start Scopy with npm run dev -- dashboard and open the exact URL printed in PowerShell.",true);}else{refresh();}
 })();
 </script>
-</body></html>\`;
+</body></html>`;
