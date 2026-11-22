@@ -106,6 +106,7 @@ export class BrowserTool {
   private launchPromise: Promise<string> | undefined;
   private child: ChildProcess | undefined;
   private pageTargetId: string | undefined;
+  private currentUrl: string | undefined;
 
   constructor(options: BrowserToolOptions) {
     this.profileDir = join(options.homeDir, "browser-profiles", randomUUID());
@@ -116,7 +117,11 @@ export class BrowserTool {
     gateway.register("browser", "Open a public web page in Scopy's isolated browser profile and extract readable page text. No clicks, form submissions, downloads, or account sessions are exposed.", (request, context) => this.handle(request, context));
   }
 
+  currentTarget(): string | undefined { return this.currentUrl; }
+
   close(): void {
+    this.currentUrl = undefined;
+    this.pageTargetId = undefined;
     this.child?.kill();
     this.child = undefined;
     this.browserEndpoint = undefined;
@@ -202,6 +207,7 @@ export class BrowserTool {
     try {
       if (request.action === "open") {
         const url = await validatePublicUrl(request.target);
+        this.currentUrl = url.toString();
         const created = await client.command("Target.createTarget", { url: "about:blank" });
         if (typeof created.targetId !== "string") throw new Error("Browser did not create a page target.");
         this.pageTargetId = created.targetId;
