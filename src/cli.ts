@@ -9,6 +9,15 @@ import { generateDraftPlan } from "./orchestrator/planner.js";
 import { PlanRepository } from "./orchestrator/plan-repository.js";
 import { PlanRunRepository } from "./orchestrator/run-repository.js";
 import { TaskNotFoundError, TaskRepository } from "./tasks/task-repository.js";
+import { join } from "node:path";
+import { ApprovalService } from "./permissions/approval-service.js";
+import { ExecutionGuard } from "./permissions/execution-guard.js";
+import { PermissionRepository } from "./permissions/permission-repository.js";
+import { PolicyEngine } from "./permissions/policy-engine.js";
+import { RuntimeEngine } from "./runtime/runtime-engine.js";
+import { FilesystemTool } from "./tools/filesystem-tool.js";
+import { ToolGateway } from "./tools/tool-gateway.js";
+import { PlanStepExecutor } from "./orchestrator/step-executor.js";
 
 function printUsage(): void {
   console.log(`
@@ -31,12 +40,17 @@ Commands:
   npm run dev -- plan show <plan-id>
   npm run dev -- plan approve <plan-id>
   npm run dev -- plan reject <plan-id>
+  npm run dev -- permission set <actor> <tool> <action> <target-pattern> <allow|deny|approval_required>
+  npm run dev -- approval list
+  npm run dev -- approval approve <approval-id>
+  npm run dev -- approval reject <approval-id>
   npm run dev -- run start <approved-plan-id>
   npm run dev -- run list
   npm run dev -- run show <run-id>
   npm run dev -- run step start <run-id> <step-id>
   npm run dev -- run step complete <run-id> <step-id> ["result"]
   npm run dev -- run step fail <run-id> <step-id> "reason"
+  npm run dev -- run step execute <run-id> <step-id> filesystem <read|write> <workspace-relative-path> [payload-json] [approval-id]
   npm run dev -- run resume <run-id>
   npm run dev -- run cancel <run-id>
 `);
@@ -217,6 +231,39 @@ async function main(): Promise<void> {
       return;
     }
 
+    if (command === "permission") {
+      if (subcommand !== "set") throw new Error("Usage: permission set <actor> <tool> <action> <target-pattern> <allow|deny|approval_required>");
+      const [actorId, tool, action, targetPattern, effect] = args;
+      if (!actorId || !tool || !action || !targetPattern ||
+        (effect !== "allow" && effect !== "deny" && effect !== "approval_required")) {
+        throw new Error("Usage: permission set <actor> <tool> <action> <target-pattern> <allow|deny|approval_required>");
+      }
+      const permissions = new PermissionRepository(database);
+      console.log(JSON.stringify(permissions.setRule({
+        actorId, tool, action, targetPattern, effect,
+      }), null, 2));
+      return;
+    }
+
+    if (command === "approval") {
+      const permissions = new PermissionRepository(database);
+      const policy = new PolicyEngine(permissions);
+      const approvals = new ApprovalService(database, policy);
+      if (subcommand === "list") {
+        console.log(JSON.stringify(approvals.listPending(), null, 2));
+        return;
+      }
+      const id = args[0];
+      if (!id || (subcommand !== "approve" && subcommand !== "reject")) {
+        throw new Error("Usage: approval <list|approve|reject> [approval-id]");
+      }
+      const reviewed = subcommand === "approve"
+        ? approvals.approve(id, "user:local")
+        : approvals.reject(id, "user:local");
+      console.log(JSON.stringify(reviewed, null, 2));
+      return;
+    }
+
     if (command === "run") {
       const runs = new PlanRunRepository(database);
       if (subcommand === "start") {
@@ -225,7 +272,7 @@ async function main(): Promise<void> {
         const run = runs.start(planId, "user:local");
         console.log(JSON.stringify({
           ...run,
-          notice: "Run created. Steps are tracked manually; no tools or external actions are executed.",
+          notice: "Run created. Steps can be manually tracked or executed through the guarded CLI tool path; model-generated text is not executed as a tool call.",
         }, null, 2));
         return;
       }
@@ -241,7 +288,7 @@ async function main(): Promise<void> {
         console.log(JSON.stringify({
           ...run,
           latestCheckpoint: runs.getLatestCheckpoint(id),
-          notice: "Step transitions are bookkeeping only; no tools or external actions are executed.",
+          notice: "Manual step transitions are bookkeeping only. Use run step execute to invoke a typed action through policy, approvals, runtime, and the tool gateway.",
         }, null, 2));
         return;
       }
@@ -263,7 +310,37 @@ async function main(): Promise<void> {
           throw new Error('Usage: run step <start|complete|fail> <run-id> <step-id> ["result or reason"]');
         }
         let run;
-        if (operation === "start") {
+        if (operation === "execute") {
+          const [tool, action, target, payloadJson, approvalId] = details;
+          if (!tool || !action || !target) {
+            throw new Error('Usage: run step execute <run-id> <step-id> filesystem <read|write> <workspace-relative-path> [payload-json] [approval-id]');
+          }
+          if (tool !== "filesystem") {
+            throw new Error("The CLI currently registers only the filesystem tool for plan-step execution.");
+          }
+          const existingRun = runs.getById(runId);
+          if (!existingRun) throw new Error(`Plan run not found: ${runId}`);
+          let payload: Record<string, unknown> = {};
+          if (payloadJson) {
+            const parsed: unknown = JSON.parse(payloadJson);
+            if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+              throw new Error("Action payload must be a JSON object.");
+            }
+            payload = parsed as Record<string, unknown>;
+          }
+          const permissions = new PermissionRepository(database);
+          const policy = new PolicyEngine(permissions);
+          const approvals = new ApprovalService(database, policy);
+          const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
+          new FilesystemTool({ workspaceRoot: join(config.homeDir, "workspace") }).register(gateway);
+          const runtime = new RuntimeEngine(database, gateway);
+          const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
+          const result = await executor.execute(runId, stepId, {
+            actorId: existingRun.startedBy, tool, action, target, payload,
+          }, {}, approvalId);
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        } else if (operation === "start") {
           run = runs.startStep(runId, stepId);
         } else if (operation === "complete") {
           run = runs.completeStep(runId, stepId, details.join(" "));
