@@ -29,6 +29,9 @@ src/cli.ts
 src/config.ts
 src/db/database.ts
 src/memory/memory-repository.ts
+src/orchestrator/plan-repository.ts
+src/orchestrator/plan.ts
+src/orchestrator/planner.ts
 src/project/project-context.ts
 src/permissions/approval-service.ts
 src/permissions/execution-guard.ts
@@ -43,6 +46,7 @@ tests/ai-router.test.ts
 tests/chat-context.test.ts
 tests/local-router-timeout.test.ts
 tests/memory-repository.test.ts
+tests/orchestrator.test.ts
 tests/permissions.test.ts
 tests/project-context.test.ts
 tests/runtime-engine.test.ts
