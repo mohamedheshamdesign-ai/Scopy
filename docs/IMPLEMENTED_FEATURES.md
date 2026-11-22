@@ -43,6 +43,8 @@ This document describes code presence, not a claim that the current local checko
 | Typed browser and terminal plan actions | Implemented, limited | `src/orchestrator/plan.ts`, `src/orchestrator/action-resolver.ts`, `src/orchestrator/planner.ts`, `src/orchestrator/step-executor.ts` | Planner can propose browser open and constrained terminal run actions. Policy requires exact one-time approval before execution; filesystem actions retain their existing policy behavior. |
 | Sequential specialist team synthesis | Implemented, advisory-only | `src/dashboard/dashboard-server.ts`, `src/agents/agent-registry.ts` | Runs two or three selected specialist profiles sequentially through the same local model, then synthesizes contributions. This is not independent concurrent agents, inter-agent messaging, or tool-enabled autonomous delegation. |
 
+| Opt-in local MCP integrations | Implemented, stdio bridge | `src/integrations/mcp/mcp-server-manager.ts`, `src/tools/mcp-tool.ts`, `src/dashboard/dashboard-server.ts` | Local child-process servers launched without a shell; allowlisted command names; selected environment variable pass-through; MCP initialize/tools-list/tools-call; per-call process cleanup; exact approval for every external tool call; configuration kept under the local secrets directory. No OAuth flow, remote HTTP transport, or persistent server process manager. |
+
 ## Not implemented or not evidenced by the current tracked source tree
 
 - Action resolution supports validated filesystem read/list/mkdir/write, browser open, and constrained terminal run proposals. General research workflows, browser interaction beyond navigation/text extraction, desktop UI actions, and external-app actions are not supported by the resolver. Automatic crash recovery of interrupted side effects remains unimplemented.
@@ -53,7 +55,7 @@ This document describes code presence, not a claim that the current local checko
 - General terminal execution beyond the bounded, approval-gated executable allowlist.
 - MCP tool integration.
 - Native desktop application/workspace (the current dashboard is browser-served).
-- MCP tool integration and external app integrations.
+- Built-in OAuth flows, remote HTTP MCP transports, managed long-lived server processes, and provider-specific external account integrations.
 - Embeddings, vector database, automatic memory extraction, and memory consolidation.
 - Streaming chat, AI tool calling, and vision support.
 - General structured logging with secret redaction.
