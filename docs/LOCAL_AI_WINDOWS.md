@@ -12,9 +12,9 @@ The user reported the following successful runtime log:
 - llama-server.exe --version returned build 12602, commit 418fe97b5.
 - --list-devices detected Vulkan0: NVIDIA GeForce GTX 1660 Ti and Vulkan1: Intel UHD Graphics.
 - The server loaded the Qwen3-Coder 30B A3B Q4_K_M model and listened on http://127.0.0.1:8080.
-- The log also contained a transient download connection failure at 73%, a Windows symlink privilege warning, and a Vulkan Flash Attention fallback warning.
-
-This is evidence that the server loaded the model once. It is not a verified SHA-256 integrity check or a repeatable performance benchmark. Run the diagnostics below before treating the model as validated.
+- The user verified the model SHA-256 against the expected publisher hash; the values matched.
+- Scopy's `ai models` and `ai health` commands succeeded against the authenticated local server.
+- A chat request was aborted at the provider's original 120-second request timeout while the model was still generating.
 
 ## Storage layout
 
@@ -65,7 +65,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-local-ai.ps1
 
 Default profile:
 - Context: 8192 tokens.
-- Parallel sequences: 1 (the prior run reported four slots).
+- Parallel sequences: 1.
 - Device: Vulkan0 only; the Intel iGPU is not used for model offload.
 - GPU placement: llama.cpp automatic fit; -ngl 12 is intentionally not pinned.
 - GPU reserve: 1024 MiB.
@@ -104,6 +104,16 @@ npm run dev -- ai models
 npm run dev -- ai health
 npm run dev -- ai chat "Explain the Scopy architecture and list three concrete improvements."
 ~~~
+
+The local provider's original default generation timeout was 120 seconds. That was too short for the current long architecture prompt: the server reported roughly 35 seconds of prompt processing followed by generation, then the client cancelled the request before receiving the complete response.
+
+The current `dev` branch changes the default local generation timeout to 600,000 ms (10 minutes). It is configurable in the PowerShell session:
+
+~~~
+$env:SCOPY_LOCAL_AI_TIMEOUT_MS = "600000"
+~~~
+
+Allowed values are integer milliseconds from 1 through 600000. The setting controls chat generation only; model discovery and health checks retain their shorter request limits. The provider remains non-streaming, so the CLI prints the answer only after the complete response has arrived. This timeout is a maximum wait, not a performance target.
 
 Scopy local adapter accepts only HTTP loopback endpoints and sends the local Bearer key from the current PowerShell session. It does not silently fall back to cloud. The router has no cloud provider enabled by default, and cloud egress remains blocked unless a caller explicitly opts in at the router API.
 
