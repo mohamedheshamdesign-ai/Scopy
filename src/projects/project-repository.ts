@@ -63,6 +63,26 @@ export class ProjectRepository {
     return rows.map(mapProject);
   }
 
+  update(id: string, input: { readonly name?: string; readonly description?: string }): Project {
+    const existing = this.getById(id);
+    if (!existing) throw new ProjectNotFoundError(id);
+    if (existing.status !== "active") throw new Error("Archived projects cannot be updated.");
+    if (input.name === undefined && input.description === undefined) throw new Error("Provide at least one project field to update.");
+    const name = input.name === undefined ? existing.name : input.name.trim();
+    const description = input.description === undefined ? existing.description : input.description.trim();
+    if (!name || name.length > 120) throw new Error("Project name must contain between 1 and 120 characters.");
+    if (description.length > 4_000) throw new Error("Project description cannot exceed 4000 characters.");
+    const now = new Date().toISOString();
+    const save = this.database.transaction(() => {
+      this.database.prepare("UPDATE projects SET name = ?, description = ?, updated_at = ? WHERE id = ? AND status = 'active'")
+        .run(name, description, now, id);
+      this.database.prepare("INSERT INTO audit_events (id, event_type, entity_type, entity_id, payload_json, created_at) VALUES (?, 'project.updated', 'project', ?, ?, ?)")
+        .run(randomUUID(), id, JSON.stringify({ changedFields: Object.keys(input) }), now);
+    });
+    save();
+    return this.getById(id)!;
+  }
+
   archive(id: string): Project {
     const existing = this.getById(id);
     if (!existing) throw new ProjectNotFoundError(id);

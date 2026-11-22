@@ -35,6 +35,7 @@ Commands:
   npm run dev -- project create "Project name" ["Description"]
   npm run dev -- project list [--all]
   npm run dev -- project show <project-id>
+  npm run dev -- project update <project-id> <name|description> <value>
   npm run dev -- project archive <project-id>
   npm run dev -- backup create
   npm run dev -- backup verify <backup-filename>
@@ -308,7 +309,17 @@ async function main(): Promise<void> {
         if (!id) throw new Error("Usage: project show <project-id>");
         const project = projects.getById(id);
         if (!project) throw new Error("Project not found: " + id);
-        console.log(JSON.stringify(project, null, 2));
+        const tasks = new TaskRepository(database).list({ projectId: id });
+        console.log(JSON.stringify({ project, tasks }, null, 2));
+        return;
+      }
+      if (subcommand === "update") {
+        const [id, field, ...valueParts] = args;
+        const value = valueParts.join(" ").trim();
+        if (!id || !field || !value) throw new Error("Usage: project update <project-id> <name|description> <value>");
+        if (field === "name") console.log(JSON.stringify(projects.update(id, { name: value }), null, 2));
+        else if (field === "description") console.log(JSON.stringify(projects.update(id, { description: value }), null, 2));
+        else throw new Error("Project field must be name or description.");
         return;
       }
       if (subcommand === "archive") {

@@ -39,6 +39,7 @@ npm run dev -- task add "Prepare Scopy project brief"
 npm run dev -- task list
 npm run dev -- project create "Personal Brand" "Brand design projects"
 npm run dev -- project list
+npm run dev -- project update <PROJECT_ID> description "Updated project description"
 npm run dev -- task add "Prepare brand strategy" --project <PROJECT_ID>
 npm run dev -- task update <TASK_ID> status in_progress
 npm run dev -- backup create
@@ -51,7 +52,7 @@ npm run dev -- agent list
 npm run dev -- agent run brand-designer "Create a brand identity direction for a premium design studio"
 ```
 
-Projects can be created, listed, inspected, and archived. Tasks can be linked to active projects, filtered by project/status, and updated. Use `project show <PROJECT_ID>` to inspect a project and `project archive <PROJECT_ID>` to archive it without deleting linked tasks. Run `backup create` to create a SQLite snapshot under `E:\\Scopy\\backups`, then `backup verify <BACKUP_FILENAME>` to check its integrity. Backup restore is not available yet.
+Projects can be created, listed, inspected, and archived. Tasks can be linked to active projects, filtered by project/status, and updated. Use `project show <PROJECT_ID>` to inspect a project and its tasks, `project update <PROJECT_ID> name|description <value>` to edit it, and `project archive <PROJECT_ID>` to archive it without deleting linked tasks. Run `backup create` to create a SQLite snapshot under `E:\\Scopy\\backups`, then `backup verify <BACKUP_FILENAME>` to check its integrity. Backup restore is not available yet.
 
 To complete a task, copy its ID from the task list:
 

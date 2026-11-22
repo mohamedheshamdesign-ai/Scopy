@@ -33,7 +33,7 @@ Implement only the contracts and infrastructure required for a first working ver
 6. Run/task IDs, timestamps, status transitions, and audit events.
 7. Unit and integration tests.
 
-**Acceptance:** create, list, update, and complete tasks; create/list/archive projects; restart Scopy and verify persistence. SQLite backup creation and integrity verification are implemented and tested; restore remains open.
+**Acceptance:** create, list, update, and complete tasks; create/list/update/archive projects; restart Scopy and verify persistence. SQLite backup creation and integrity verification are implemented and tested; restore remains open.
 
 ## Phase 2 — Controlled execution
 

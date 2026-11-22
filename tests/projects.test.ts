@@ -23,14 +23,17 @@ test("projects persist, archive safely, and scope linked tasks", async () => {
     assert.equal(tasks.list({ projectId: null }).length, 0);
     assert.equal(projects.getById(project.id)?.id, project.id);
     assert.equal(projects.list().length, 1);
+    const updatedProject = projects.update(project.id, { description: "Updated project description." });
+    assert.equal(updatedProject.description, "Updated project description.");
     assert.equal(projects.archive(project.id).status, "archived");
+    assert.throws(() => projects.update(project.id, { name: "Archived project" }), /Archived projects cannot be updated/);
     assert.equal(projects.list().length, 0);
     assert.equal(projects.list({ includeArchived: true }).length, 1);
     assert.throws(() => tasks.create({ title: "Should not attach", projectId: project.id }), /archived/);
     assert.equal(tasks.update(task.id, { status: "in_progress" }).projectId, project.id);
     assert.throws(() => projects.archive("missing-project"), ProjectNotFoundError);
     const events = database.prepare("SELECT event_type FROM audit_events WHERE entity_type = 'project' ORDER BY rowid").all() as Array<{ event_type: string }>;
-    assert.deepEqual(events.map((event) => event.event_type), ["project.created", "project.archived"]);
+    assert.deepEqual(events.map((event) => event.event_type), ["project.created", "project.updated", "project.archived"]);
   } finally {
     database.close();
     await rm(home, { recursive: true, force: true });
