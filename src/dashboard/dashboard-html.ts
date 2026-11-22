@@ -109,7 +109,8 @@ $("browserOpen").addEventListener("click",async()=>{try{$("browserStatus").textC
 $("browserRead").addEventListener("click",async()=>{try{const r=await api("/api/browser/read");$("browserStatus").textContent=r.url;$("browserTitle").textContent=r.title;$("browserPage").textContent=r.text;}catch(e){showNotice(e.message,true);}});
 $("browserClose").addEventListener("click",async()=>{try{await api("/api/browser/close","POST",{});$("browserStatus").textContent="Browser closed.";$("browserPage").textContent="";}catch(e){showNotice(e.message,true);}});
 $("team").addEventListener("click",async()=>{const prompt=$("prompt").value.trim();if(!prompt)return;const ids=["brand-designer","business-operator","marketing-strategist"];const box=$("messages");box.insertAdjacentHTML("beforeend",'<div class="msg user">'+esc(prompt)+' <span class="pill">TEAM</span></div>');$("prompt").value="";$("team").disabled=true;try{const r=await api("/api/delegate","POST",{prompt,agentIds:ids});box.insertAdjacentHTML("beforeend",'<div class="msg ai">'+esc(r.synthesis)+'<div class="muted small">Sequential specialist review · '+esc(r.model)+'</div></div>');box.scrollTop=box.scrollHeight;}catch(e){showNotice(e.message,true);}finally{$("team").disabled=false;}});
-\n$("terminalRequest").addEventListener("click",async()=>{
+
+$("terminalRequest").addEventListener("click",async()=>{
  try{pendingTerminal=terminalPayload();const approval=await api("/api/terminal/requests","POST",pendingTerminal);$("terminalState").textContent="Approval request created: "+approval.id+". Review it in Approvals, then execute the same command."; $("terminalExecute").disabled=true;await refresh();showNotice("Terminal command is waiting for your approval.");}
  catch(e){showNotice(e.message,true);}
 });
