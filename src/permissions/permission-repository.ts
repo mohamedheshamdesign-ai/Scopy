@@ -94,7 +94,10 @@ export class PermissionRepository {
 
     const bestScore = Math.max(...matching.map(score));
     const best = matching.filter((row) => score(row) === bestScore);
-    const selected = best.find((row) => row.effect === "deny") ?? best[0];
+    const selected =
+      best.find((row) => row.effect === "deny") ??
+      best.find((row) => row.effect === "approval_required") ??
+      best.find((row) => row.effect === "allow");
     return selected ? mapRule(selected) : null;
   }
 }
