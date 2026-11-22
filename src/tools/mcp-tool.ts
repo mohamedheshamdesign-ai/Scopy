@@ -18,10 +18,11 @@ export class McpTool {
         const serverId = request.target.slice(0, separator);
         const toolName = request.target.slice(separator + 1);
         const payload = request.payload;
-        if (!payload || typeof payload.arguments !== "object" || payload.arguments === null || Array.isArray(payload.arguments)) {
+        if (!payload || typeof payload.arguments !== "object" || payload.arguments === null || Array.isArray(payload.arguments) ||
+            typeof payload.serverFingerprint !== "string") {
           throw new Error("MCP calls require payload.arguments as a JSON object.");
         }
-        return this.manager.callTool(serverId, toolName, payload.arguments as Record<string, unknown>);
+        return this.manager.callTool(serverId, toolName, payload.arguments as Record<string, unknown>, payload.serverFingerprint);
       },
     );
   }
