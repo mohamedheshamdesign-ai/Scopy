@@ -214,3 +214,25 @@ test("workspace_assist allows workspace reads, gates changes, and denies other t
     assert.equal(policy.evaluate(request("filesystem", "read", "agent:developer")).effect, "deny");
   });
 });
+
+test("workspace_assist routes write actions through exact approval", async () => {
+  await withServices(async ({ rules, database }) => {
+    const policy = new PolicyEngine(rules, "workspace_assist");
+    const approvals = new ApprovalService(database, policy);
+    const guard = new ExecutionGuard(database, policy, approvals);
+    const action: ActionRequest = {
+      actorId: "user:local", tool: "filesystem", action: "write",
+      target: "notes/approved.txt", payload: { content: "approved workspace write" },
+    };
+    let executed = false;
+    await assert.rejects(guard.execute(action, () => { executed = true; }), ApprovalRequiredError);
+    assert.equal(executed, false);
+    const pending = approvals.listPending()[0];
+    assert.ok(pending);
+    approvals.approve(pending.id, "user:local");
+    const result = await guard.execute(action, () => { executed = true; return "written"; }, pending.id);
+    assert.equal(result, "written");
+    assert.equal(executed, true);
+    assert.equal(approvals.getById(pending.id)?.status, "consumed");
+  });
+});
