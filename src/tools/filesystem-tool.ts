@@ -121,6 +121,9 @@ export class FilesystemTool {
     if (!payload || typeof payload.content !== "string") {
       throw new Error("Filesystem write requires a string payload.content.");
     }
+    if (Buffer.byteLength(payload.content, "utf8") > MAX_FILE_BYTES) {
+      throw new Error("Filesystem write content cannot exceed 1 MiB.");
+    }
 
     await mkdir(dirname(path), { recursive: true });
     const parent = await realpath(dirname(path));
