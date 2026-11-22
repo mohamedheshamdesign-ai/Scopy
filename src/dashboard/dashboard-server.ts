@@ -579,18 +579,15 @@ export class DashboardServer {
       const windowTitle = stringField(input, "windowTitle", 200);
       let payload: Record<string, unknown>;
       if (action === "snapshot") {
-        payload = { limit: input.limit ?? 100 };
-      } else if (action === "invoke") {
-        payload = {
-          ...(typeof input.automationId === "string" && input.automationId ? { automationId: input.automationId } : {}),
-          ...(typeof input.name === "string" && input.name ? { name: input.name } : {}),
-        };
-      } else if (action === "set_value") {
-        payload = {
-          ...(typeof input.automationId === "string" && input.automationId ? { automationId: input.automationId } : {}),
-          ...(typeof input.name === "string" && input.name ? { name: input.name } : {}),
-          value: stringField(input, "value", 10000),
-        };
+        const limit = input.limit ?? 100;
+        if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1 || limit > 300) throw new Error("Snapshot limit must be between 1 and 300.");
+        payload = { limit };
+      } else if (action === "invoke" || action === "set_value") {
+        const automationId = optionalString(input, "automationId", 256);
+        const name = optionalString(input, "name", 256);
+        if (Boolean(automationId) === Boolean(name)) throw new Error("Provide exactly one Automation ID or exact control name.");
+        payload = automationId ? { automationId } : { name };
+        if (action === "set_value") payload.value = stringField(input, "value", 10000);
       } else {
         throw new Error("Computer action must be snapshot, invoke, or set_value.");
       }
