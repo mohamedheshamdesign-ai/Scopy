@@ -16,11 +16,12 @@ $raw = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:S
 $request = $raw | ConvertFrom-Json
 $root = [System.Windows.Automation.AutomationElement]::RootElement
 $windows = $root.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
-$window = $null
+$windowMatches = @()
 foreach ($candidate in $windows) {
-  if ($candidate.Current.Name -ceq [string]$request.windowTitle) { $window = $candidate; break }
+  if ($candidate.Current.Name -ceq [string]$request.windowTitle) { $windowMatches += $candidate }
 }
-if ($null -eq $window) { throw "No top-level window matched the exact requested title." }
+if ($windowMatches.Count -ne 1) { throw "The exact window title must match one top-level window." }
+$window = $windowMatches[0]
 switch ([string]$request.action) {
   'snapshot' {
     $elements = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
@@ -41,9 +42,9 @@ switch ([string]$request.action) {
   'invoke' {
     if ($request.automationId) { $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, [string]$request.automationId) }
     else { $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, [string]$request.name) }
-    $matches = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
-    if ($matches.Count -ne 1) { throw "Target control must match exactly one element." }
-    $element = $matches.Item(0)
+    $foundControls = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
+    if ($foundControls.Count -ne 1) { throw "Target control must match exactly one element." }
+    $element = $foundControls.Item(0)
     if (-not $element.Current.IsEnabled) { throw "Target control is disabled." }
     $pattern = $element.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
     $pattern.Invoke()
