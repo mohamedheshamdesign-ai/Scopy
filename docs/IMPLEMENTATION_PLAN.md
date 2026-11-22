@@ -73,12 +73,12 @@ Implement only the contracts and infrastructure required for a first working ver
 1. [x] Plan schema and validation — bounded step fields, risk labels, dependency validation, and cycle detection.
    - Initial slice also supports local-model draft generation, SQLite persistence, explicit approve/reject review, and audit events. Approval is not execution authorization.
 2. [x] Orchestrator run lifecycle — approved-plan runs, persisted step states, dependency gating, serial transitions, retries after recorded failures, cancellation, audit events, and inspectable checkpoints. Current transitions are manual bookkeeping; no tools are invoked.
-3. Agent registry and capability declarations.
-4. Delegation, dependencies, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
-5. Evaluation of plan quality and execution outcomes.
-6. Add Research and Developer agents first, then expand based on real workflows.
+5. Agent registry and capability declarations.
+6. Delegation, dependencies, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
+7. Evaluation of plan quality and execution outcomes.
+8. Add Research and Developer agents first, then expand based on real workflows.
 
-**Acceptance:** one multi-step task is planned and reviewed; a run is started, dependency-ordered steps are manually advanced, failure/retry and cancellation are recorded, checkpoints can be inspected, and all transitions have an audit trail. Actual tool execution remains gated for a later slice.
+**Acceptance:** one multi-step task is planned and reviewed; a run is started; dependency-ordered steps can be advanced manually or executed through the guarded service; default-deny, exact approvals, actor binding, tool failure recording, checkpoints, and audit trails are tested. The current service is not yet wired to CLI commands or an automatic model action resolver.
 
 ## Phase 5 — Browser and computer control
 
