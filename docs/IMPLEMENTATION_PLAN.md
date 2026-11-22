@@ -47,7 +47,7 @@ Implement only the contracts and infrastructure required for a first working ver
 8. Harden filesystem isolation against local race conditions; add OS-level isolation where appropriate.
 9. Authenticated reviewer identity and a local approval interface.
 
-**Runtime limitations:** cancellation requires tools to observe the abort signal; non-cooperative handlers may continue after the runtime stops awaiting them. Output size is checked after result serialization, not as a streaming or memory-allocation cap. Hard process isolation and streaming output enforcement are not implemented.
+**Runtime limitations:** cancellation requires tools to observe the abort signal; non-cooperative handlers may continue after the runtime stops awaiting them. Output size is checked after result serialization, not as a streaming or memory-allocation cap. Hard process isolation and streaming output enforcement are not implemented. A failed/timed-out execution may have completed an external side effect before the runtime recorded failure; retries are explicit and must not be assumed idempotent.
 
 **Acceptance:** policy, approval, gateway, filesystem, and runtime tests pass; safe read/write succeeds inside the workspace; traversal and symlink escapes are denied; approval-required actions cannot execute before approval; timeouts and cancellation are recorded; checkpoints can be loaded by a matching resumed run.
 
@@ -71,14 +71,17 @@ Implement only the contracts and infrastructure required for a first working ver
 ## Phase 4 — Orchestration and specialist agents
 
 1. [x] Plan schema and validation — bounded step fields, risk labels, dependency validation, and cycle detection.
-   - Initial slice also supports local-model draft generation, SQLite persistence, explicit approve/reject review, and audit events. Approval is not execution authorization.
-2. [x] Orchestrator run lifecycle — approved-plan runs, persisted step states, dependency gating, serial transitions, retries after recorded failures, cancellation, audit events, and inspectable checkpoints. Current transitions are manual bookkeeping; no tools are invoked.
+   - Initial slice also supports local-model draft generation, SQLite persistence, explicit approve/reject review, and audit events. Plan approval is not execution authorization.
+2. [x] Orchestrator run lifecycle — approved-plan runs, persisted step states, dependency gating, serial transitions, explicit retry after recorded failures, cancellation, audit events, and inspectable checkpoints.
+3. [x] Guarded plan-step execution service — typed action requests pass policy preflight, exact one-time approval checks, actor binding, RuntimeEngine, ToolGateway, and ExecutionGuard.
+4. [x] CLI wiring for explicit filesystem actions, permission-rule management, and approval review. The CLI does not translate model-generated prose into tool calls.
+5. Trusted action resolver that maps reviewed plan intent into a bounded typed action proposal; never execute model-generated free text as a tool call.
 6. Agent registry and capability declarations.
 7. Delegation, dependencies, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
 8. Evaluation of plan quality and execution outcomes.
 9. Add Research and Developer agents first, then expand based on real workflows.
 
-**Acceptance:** one multi-step task is planned and reviewed; a run is started; dependency-ordered steps can be advanced manually or executed through the guarded service; default-deny, exact approvals, actor binding, tool failure recording, checkpoints, and audit trails are tested. The CLI currently exposes explicit filesystem actions only; an automatic model action resolver is not implemented.
+**Acceptance:** one multi-step task is planned and reviewed; a run is started; dependency-ordered steps can be advanced manually or executed through the guarded service; default-deny, exact approvals, actor binding, tool failure recording, checkpoints, and audit trails are tested. The CLI currently registers only the filesystem tool and exposes explicit actions. Automatic model action resolution and interrupted-side-effect recovery are not implemented. A timeout or failed result does not prove that a non-cooperative tool had no side effect; retries require review.
 
 ## Phase 5 — Browser and computer control
 
