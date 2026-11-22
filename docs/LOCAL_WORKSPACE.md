@@ -24,7 +24,7 @@ The app creates a random session token in memory and injects it into the served 
 - Local model chat with the built-in specialist profiles.
 - Sequential multi-specialist analysis and synthesis. The specialists share the same configured local model and are run sequentially to avoid overloading a single local inference sequence.
 - Public web search through DuckDuckGo HTML. Only the user-entered search query is sent; Scopy memory and private workspace files are not attached.
-- Read-only browser page extraction using Chrome or Edge in a separate profile below SCOPY_HOME. The browser opens public HTTP(S) URLs and extracts the page title, final URL, and bounded visible text.
+- Approval-gated browser automation using Chrome or Edge in a separate profile below SCOPY_HOME. The browser opens public HTTP(S) URLs, extracts page text, and supports CSS-selector click/type plus an allowlisted keypress set.
 - A fixed terminal command set: Git status/diff/recent log, Node version, and npm check/build/test.
 - Plan review, guarded plan execution, and pending action approval review.
 
