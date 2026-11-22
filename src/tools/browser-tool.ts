@@ -216,6 +216,7 @@ export class BrowserTool {
         const sessionId = attached.sessionId;
         await client.command("Page.enable", {}, sessionId);
         await client.command("Runtime.enable", {}, sessionId);
+        await client.command("Page.setDownloadBehavior", { behavior: "deny" }, sessionId);
         await client.command("Page.navigate", { url: url.toString() }, sessionId);
         await new Promise((resolve, reject) => {
           const timer = setTimeout(resolve, 1400);
