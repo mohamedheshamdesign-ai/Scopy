@@ -9,6 +9,12 @@ $CacheRoot = Join-Path $ScopyRoot "cache\huggingface\hub"
 $ModelFileName = "Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf"
 $ExpectedSha256 = "f6050b4da22869aa3fb9d94bb3314e9fc5a027d4741c1f97761c387d6b2b2335"
 $BaseUrl = "http://127.0.0.1:8080"
+$ApiKeyFile = Join-Path $ScopyRoot "secrets\local-ai-api-keys.txt"
+$Headers = @{}
+if (Test-Path -LiteralPath $ApiKeyFile) {
+    $ApiKey = (Get-Content -LiteralPath $ApiKeyFile -Raw).Trim()
+    if ($ApiKey) { $Headers["Authorization"] = "Bearer " + $ApiKey }
+}
 
 Write-Host ""
 Write-Host "=== Scopy local AI diagnostics ===" -ForegroundColor Cyan
@@ -82,14 +88,14 @@ if ($NvidiaSmi) {
 Write-Host ""
 Write-Host "[Local OpenAI-compatible API]" -ForegroundColor Cyan
 try {
-    $ModelsResponse = Invoke-RestMethod -Uri "$BaseUrl/v1/models" -TimeoutSec 8
+    $ModelsResponse = Invoke-RestMethod -Uri "$BaseUrl/v1/models" -Headers $Headers -TimeoutSec 8
     $ModelsResponse.data | Select-Object id, object, owned_by | Format-Table -AutoSize
 } catch {
     Write-Warning "Local API is not reachable at $BaseUrl : $($_.Exception.Message)"
 }
 
 try {
-    $MetricsResponse = Invoke-WebRequest -Uri "$BaseUrl/metrics" -TimeoutSec 5
+    $MetricsResponse = Invoke-WebRequest -Uri "$BaseUrl/metrics" -Headers $Headers -TimeoutSec 5
     Write-Host "Metrics endpoint: HTTP $($MetricsResponse.StatusCode)"
     $MetricsResponse.Content -split '\r?\n' | Where-Object { $_ -match "predicted_tokens_seconds|prompt_tokens_seconds|spec_decode_num_accepted_tokens" } | Select-Object -First 12
 } catch {
