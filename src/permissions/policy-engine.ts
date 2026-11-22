@@ -15,6 +15,9 @@ export class PolicyEngine {
     );
 
     if (!rule) {
+      if (request.actorId === "user:local" && request.tool === "browser" && request.action === "open") {
+        return { effect: "approval_required", reason: "Opening an external browser page requires exact explicit approval.", ruleId: null };
+      }
       if (request.actorId === "user:local" && request.tool === "terminal" && request.action === "run") {
         return { effect: "approval_required", reason: "Terminal commands always require exact explicit approval.", ruleId: null };
       }
