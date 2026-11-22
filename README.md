@@ -51,7 +51,7 @@ npm run dev -- app start
 
 Open the printed `http://127.0.0.1:4317` address. Keep the terminal open while using the app. The server binds only to loopback, issues a one-time in-memory session token, rejects cross-origin requests, and does not expose a remote network listener. It uses the same local SQLite database and configured Scopy workspace as the CLI.
 
-The dashboard currently provides task/project/memory views, local-model chat with the built-in specialist profiles, sequential multi-specialist analysis, pending approval review, and API-backed plan/run controls. The initial app does not provide unrestricted desktop control, browser automation, arbitrary terminal execution, or third-party account integrations; those require separate adapters and security review.
+The dashboard currently provides task/project/memory views, local-model chat with the built-in specialist profiles, sequential multi-specialist analysis, public web search, isolated read-only Chromium/Edge page reading, predefined approval-gated terminal commands, pending approval review, and API-backed plan/run controls. Browser actions are limited to opening public URLs and extracting text; the browser uses a separate Scopy profile and does not click, submit forms, download files, or reuse your personal browser session. Terminal access is restricted to fixed diagnostic/build commands and requires an explicit approval rule plus per-command approval. Windows-wide mouse/keyboard control, autonomous browser interactions, Facebook/other account integrations, and independent tool-using agent queues are not included yet.
 
 ## First commands
 
