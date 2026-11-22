@@ -14,13 +14,22 @@ export class PolicyEngine {
       request.actorId, request.tool, request.action, request.target,
     );
 
+    if (request.actorId === "user:local" &&
+        ((request.tool === "terminal" && request.action === "run") ||
+         (request.tool === "browser" && request.action === "open"))) {
+      if (rule?.effect === "deny") {
+        return { effect: "deny", reason: "A matching explicit deny rule blocks this action.", ruleId: rule.id };
+      }
+      return {
+        effect: "approval_required",
+        reason: request.tool === "terminal"
+          ? "Terminal commands always require exact explicit approval."
+          : "Opening an external browser page requires exact explicit approval.",
+        ruleId: rule?.id ?? null,
+      };
+    }
+
     if (!rule) {
-      if (request.actorId === "user:local" && request.tool === "browser" && request.action === "open") {
-        return { effect: "approval_required", reason: "Opening an external browser page requires exact explicit approval.", ruleId: null };
-      }
-      if (request.actorId === "user:local" && request.tool === "terminal" && request.action === "run") {
-        return { effect: "approval_required", reason: "Terminal commands always require exact explicit approval.", ruleId: null };
-      }
       if (this.profile === "workspace_assist" && request.actorId === "user:local" && request.tool === "filesystem") {
         if (request.action === "read" || request.action === "list") {
           return { effect: "allow", reason: "Built-in workspace_assist profile permits workspace reads and listings.", ruleId: null };
