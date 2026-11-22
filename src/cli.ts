@@ -23,6 +23,7 @@ import { FilesystemTool } from "./tools/filesystem-tool.js";
 import { ToolGateway } from "./tools/tool-gateway.js";
 import { PlanStepExecutor } from "./orchestrator/step-executor.js";
 import { startLocalApp } from "./app/local-app.js";
+import { BrowserTool } from "./tools/browser-tool.js";
 
 function printUsage(): void {
   console.log(`
@@ -516,6 +517,7 @@ async function main(): Promise<void> {
         const approvals = new ApprovalService(database, policy);
         const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
         new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
+        new BrowserTool({ homeDir: config.homeDir }).register(gateway);
         const runtime = new RuntimeEngine(database, gateway);
         const executor = new PlanStepExecutor(runs, policy, approvals, runtime, logger);
         const result = await executor.executeReadySteps(runId, {}, approvalId);
