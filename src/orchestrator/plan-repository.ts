@@ -6,6 +6,7 @@ import type {
   PlanStatus,
   PlanStepDraft,
 } from "./plan.js";
+import { validateGeneratedPlan } from "./plan.js";
 
 interface PlanRow {
   id: string;
@@ -63,13 +64,14 @@ export class PlanRepository {
     if (normalizedGoal.length < 1 || normalizedGoal.length > 2_000) {
       throw new Error("Plan goal must contain between 1 and 2000 characters.");
     }
+    const validatedDraft = validateGeneratedPlan(draft);
     const id = randomUUID();
     const now = new Date().toISOString();
     const save = this.database.transaction(() => {
       this.database.prepare(`
         INSERT INTO orchestrator_plans (id, goal, summary, status, created_at, updated_at)
         VALUES (?, ?, ?, 'draft', ?, ?)
-      `).run(id, normalizedGoal, draft.summary, now, now);
+      `).run(id, normalizedGoal, validatedDraft.summary, now, now);
 
       const insertStep = this.database.prepare(`
         INSERT INTO orchestrator_plan_steps (
@@ -77,7 +79,7 @@ export class PlanRepository {
           dependencies_json, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
-      draft.steps.forEach((step, index) => {
+      validatedDraft.steps.forEach((step, index) => {
         insertStep.run(
           step.id, id, index + 1, step.title, step.description,
           step.expectedOutput, step.risk, JSON.stringify(step.dependsOn), now,
@@ -85,7 +87,7 @@ export class PlanRepository {
       });
       this.audit(id, "orchestrator.plan.created", {
         goal: normalizedGoal,
-        stepCount: draft.steps.length,
+        stepCount: validatedDraft.steps.length,
         status: "draft",
       }, now);
     });
