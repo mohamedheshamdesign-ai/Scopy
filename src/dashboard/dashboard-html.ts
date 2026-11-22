@@ -111,7 +111,8 @@ $("terminalExecute").addEventListener("click",async()=>{
  try{$("terminalExecute").disabled=true;$("terminalState").textContent="Running approved command…";const result=await api("/api/terminal/execute","POST",{...pendingTerminal,approvalId:pendingTerminal.approvalId});$("terminalOutput").textContent="Exit code: "+result.output.exitCode+"\n\nSTDOUT\n"+result.output.stdout+"\n\nSTDERR\n"+result.output.stderr; $("terminalState").textContent="Completed in "+result.durationMs+" ms.";pendingTerminal=null;await refresh();}
  catch(e){$("terminalState").textContent=e.message;showNotice(e.message,true);}finally{$("terminalExecute").disabled=true;}
 });
-\n$("createBackup").addEventListener("click",async()=>{try{$("backupResult").textContent="Creating and verifying…";const r=await api("/api/backups","POST");$("backupResult").textContent="Verified: "+r.name+" · schema "+r.migrationVersion;}catch(e){$("backupResult").textContent=e.message;showNotice(e.message,true);}});
+
+$("createBackup").addEventListener("click",async()=>{try{$("backupResult").textContent="Creating and verifying…";const r=await api("/api/backups","POST");$("backupResult").textContent="Verified: "+r.name+" · schema "+r.migrationVersion;}catch(e){$("backupResult").textContent=e.message;showNotice(e.message,true);}});
 document.body.addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;try{
 if(b.dataset.complete){await api("/api/tasks/"+b.dataset.complete,"PATCH",{status:"completed"});await refresh();}
 if(b.dataset.planApprove||b.dataset.planReject){const id=b.dataset.planApprove||b.dataset.planReject;await api("/api/plans/"+id+"/review","POST",{decision:b.dataset.planApprove?"approved":"rejected"});await refresh();}
