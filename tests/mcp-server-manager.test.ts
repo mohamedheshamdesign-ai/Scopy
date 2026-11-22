@@ -15,8 +15,8 @@ const fakeServer = [
   "  if(message.method==='initialize')result={protocolVersion:'2024-11-05',capabilities:{tools:{}},serverInfo:{name:'scopy-test',version:'1'}};",
   "  else if(message.method==='tools/list')result={tools:[{name:'echo',description:'Echo JSON arguments',inputSchema:{type:'object',properties:{value:{type:'string'}}}}]};",
   "  else if(message.method==='tools/call')result={content:[{type:'text',text:JSON.stringify(message.params.arguments)}],isError:false};",
-  "  else {process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:message.id,error:{code:-32601,message:'Method not found'}})+'\n');return;}",
-  "  process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:message.id,result})+'\n');",
+  "  else {process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:message.id,error:{code:-32601,message:'Method not found'}})+'\\n');return;}",
+  "  process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:message.id,result})+'\\n');",
   "});",
 ].join("\n");
 
