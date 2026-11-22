@@ -76,7 +76,7 @@ Build small, testable vertical slices. Every consequential action must pass the 
 9. [ ] Multi-agent delegation, inter-agent messaging, and independent agent work queues.
 10. [ ] Tool-enabled Research and Developer agents, followed by other specialist agents, each with separately validated capabilities.
 
-**Current limits:** only the filesystem tool is registered for guarded plan execution. Agents are advisory-only. They cannot browse, run terminal commands, or invoke tools. Unsupported plan steps remain manual. A failed or interrupted action may have side effects; inspect before retrying.
+**Current limits:** cancellation is permitted only between steps; an in-flight step cannot be marked skipped while its handler may still be running. Stop the prior process and use explicit interrupted-run recovery before deciding whether to retry. Only the filesystem tool is registered for guarded plan execution. Agents are advisory-only. They cannot browse, run terminal commands, or invoke tools. Unsupported plan steps remain manual. A failed or interrupted action may have side effects; inspect before retrying.
 
 ## Phase 5 — Browser and computer control
 

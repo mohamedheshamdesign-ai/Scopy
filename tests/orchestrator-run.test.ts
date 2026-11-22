@@ -114,6 +114,20 @@ test("failed step can be explicitly retried through run resume", async () => {
   });
 });
 
+test("run cancellation refuses to skip an in-flight step", async () => {
+  await withRunRepositories(async (plans, runs) => {
+    const run = runs.start(await approvedPlan(plans), "user:local");
+    runs.startStep(run.id, "step-1");
+
+    assert.throws(() => runs.cancel(run.id), /Cannot cancel while step step-1 is executing/);
+
+    const unchanged = runs.getById(run.id)!;
+    assert.equal(unchanged.status, "running");
+    assert.equal(unchanged.steps[0]?.status, "running");
+    assert.equal(unchanged.steps[1]?.status, "pending");
+  });
+});
+
 test("run cancellation skips unfinished steps and terminal runs cannot be changed", async () => {
   await withRunRepositories(async (plans, runs) => {
     const run = runs.start(await approvedPlan(plans), "user:local");

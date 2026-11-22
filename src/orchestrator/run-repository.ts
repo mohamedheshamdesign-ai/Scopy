@@ -343,6 +343,14 @@ export class PlanRunRepository {
     const transition = this.database.transaction(() => {
       const run = this.requireRun(runId);
       if (run.status !== "running") throw new Error("Only a running plan run can be cancelled.");
+      const inFlight = this.database.prepare(
+        "SELECT step_id FROM orchestrator_run_steps WHERE run_id = ? AND status = 'running' LIMIT 1",
+      ).get(runId) as { step_id: string } | undefined;
+      if (inFlight) {
+        throw new Error(
+          `Cannot cancel while step ${inFlight.step_id} is executing. Stop the Scopy process first, then use run recover with --confirm-process-stopped; inspect possible side effects before retrying.`,
+        );
+      }
       this.database.prepare(`
         UPDATE orchestrator_run_steps
         SET status = 'skipped', finished_at = ?
