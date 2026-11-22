@@ -134,3 +134,18 @@ test("a specific deny overrides a broad allow rule", async () => {
     }).effect, "deny");
   });
 });
+
+test("a more specific tool-and-action deny beats a broad actor allow", async () => {
+  await withServices(({ rules, policy }) => {
+    rules.setRule({ actorId: "agent:marketing", tool: "*", action: "*", effect: "allow" });
+    rules.setRule({
+      actorId: "*", tool: "filesystem", action: "read",
+      targetPattern: "E:\\\\Scopy\\\\private\\\\*",
+      effect: "deny",
+    });
+    assert.equal(policy.evaluate({
+      actorId: "agent:marketing", tool: "filesystem", action: "read",
+      target: "E:\\\\Scopy\\\\private\\\\credentials.txt",
+    }).effect, "deny");
+  });
+});
