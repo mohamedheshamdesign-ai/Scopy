@@ -128,7 +128,13 @@ export class PlanStepExecutor {
     this.logger?.info("plan.step.execution.started", { runId, stepId, tool: request.tool, action: request.action, target: request.target });
     let execution: RuntimeResult<T>;
     try {
-      execution = await this.runtime.execute<T>(request, options, approvalId);
+      const defaultTimeoutMs = request.tool === "terminal"
+        ? (typeof request.payload?.timeoutMs === "number" ? request.payload.timeoutMs + 5_000 : 35_000)
+        : request.tool === "browser" ? 75_000 : 30_000;
+      execution = await this.runtime.execute<T>(request, {
+        ...options,
+        timeoutMs: options.timeoutMs ?? defaultTimeoutMs,
+      }, approvalId);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown tool execution error.";
       this.logger?.error("plan.step.execution.failed", { runId, stepId, tool: request.tool, action: request.action, target: request.target, errorName: error instanceof Error ? error.name : "UnknownError" });
