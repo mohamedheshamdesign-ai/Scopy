@@ -45,13 +45,15 @@ This document describes code presence, not a claim that the current local checko
 
 | Opt-in local MCP integrations | Implemented, stdio bridge | `src/integrations/mcp/mcp-server-manager.ts`, `src/tools/mcp-tool.ts`, `src/dashboard/dashboard-server.ts` | Local child-process servers launched without a shell; allowlisted command names; selected environment variable pass-through; MCP initialize/tools-list/tools-call; per-call process cleanup; exact approval for every external tool call; configuration kept under the local secrets directory. No OAuth flow, remote HTTP transport, or persistent server process manager. |
 
+| Windows UI Automation | Implemented, basic and approval-gated | `src/tools/windows-computer-tool.ts`, `src/dashboard/dashboard-server.ts`, `src/permissions/policy-engine.ts` | Uses a fixed PowerShell UI Automation script to inspect a window's control tree, invoke one uniquely matched control, or set a ValuePattern value. Exact window title and exact control identifier are included in the approval request. Windows-only; no screenshots, coordinates, global keyboard input, process isolation, or robust recovery. |
+
 ## Not implemented or not evidenced by the current tracked source tree
 
 - Action resolution supports validated filesystem read/list/mkdir/write, browser open, and constrained terminal run proposals. General research workflows, browser interaction beyond navigation/text extraction, desktop UI actions, and external-app actions are not supported by the resolver. Automatic crash recovery of interrupted side effects remains unimplemented.
 - Autonomous multi-agent delegation, inter-agent messaging, and independent agent work queues. Dashboard team mode is sequential advisory synthesis only.
 - Tool-enabled autonomous specialist agents; current specialist profiles are advisory-only and do not have web, filesystem, terminal, or external-app tools.
 - Browser interaction beyond navigation and page-text extraction (clicks, forms, downloads, authenticated sessions).
-- Windows computer/UI control.
+- Advanced Windows computer/UI control: screenshots, coordinate-based input, global keyboard shortcuts, broader application compatibility, and recovery/evidence capture.
 - General terminal execution beyond the bounded, approval-gated executable allowlist.
 - MCP tool integration.
 - Native desktop application/workspace (the current dashboard is browser-served).
