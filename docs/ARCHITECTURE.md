@@ -65,8 +65,8 @@ Shared infrastructure:
 - **Planner:** turns a user goal into a typed plan with steps, dependencies, expected outputs, and risk classifications. A plan is a proposal, not permission.
 - **Runtime:** executes approved steps, applies timeouts and resource limits, records outputs, and supports checkpoints.
 - **Policy service:** evaluates actor, tool, action, target, scope, and risk. It returns allow, deny, or approval-required. Tool adapters must not bypass it.
-- **AI Router:** selects a provider/model using capability, availability, privacy, latency, context, and configured budget constraints. It must not silently send private data to a cloud provider.
-- **Memory:** stores facts with source, timestamp, confidence, scope, and retention metadata. Retrieval must distinguish user-confirmed facts from inferred or temporary context.
+- **AI Router:** selects a registered provider/model using capability, availability, privacy, latency, context, and configured budget constraints. The initial implementation is local-only by default, restricts the first adapter to loopback, and requires an explicit per-request cloud egress opt-in with audit events. It must not silently send private data to a cloud provider.
+- **Memory:** stores facts with source, timestamp, confidence, scope, and retention metadata. Retrieval must distinguish user-confirmed facts from inferred or temporary context. The initial implementation uses bounded lexical retrieval; embeddings are deferred until evaluation demonstrates a need.
 - **Tool Gateway:** exposes narrow, typed capabilities. Tools receive scoped access rather than unrestricted machine access.
 - **Evaluation:** tests task quality, policy compliance, tool reliability, latency, and resource usage.
 
@@ -156,3 +156,12 @@ Scopy/
 - No large multi-agent framework before the core execution and policy contracts exist.
 - No embeddings/vector database until retrieval evaluations demonstrate a need.
 - No cloud dependency for startup, memory, or basic task management.
+
+## 11. Implemented AI and memory baseline
+
+- Provider contract describes provider boundary, models, and capabilities.
+- Initial OpenAI-compatible adapter accepts only HTTP loopback endpoints and supports non-streaming chat plus a basic health check.
+- Provider router validates model registration and records cloud egress authorization/denial. There is no automatic provider failover.
+- Memory records include type, scope, content, source type/reference, confidence, status, timestamps, and optional expiry.
+- Initial retrieval is lexical and deterministic, with global plus project-scope filtering. Archived and expired records are excluded.
+- Cloud adapters, streaming, tool calling, vision, automatic memory extraction, embeddings, and consolidation remain unimplemented.
