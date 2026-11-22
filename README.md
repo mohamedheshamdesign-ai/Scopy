@@ -101,3 +101,33 @@ The Runtime Engine wraps gateway calls and stores execution records and checkpoi
 Tools should observe `context.signal` and periodically check it during long operations. Cancellation and timeout are cooperative: a handler that ignores the signal may continue running after the Runtime Engine has stopped awaiting it. The output limit is checked after a handler returns and its result is serialized; it limits accepted/persisted output, not peak memory allocated inside a tool. Streaming output enforcement and hard process isolation are future work.
 
 The gateway is an internal application API; no agent or external integration is connected yet. Reviewer identity is currently supplied by the trusted local application layer; authenticated user identity and a local approval interface remain future work.
+
+
+### AI Router and memory (initial local milestone)
+
+The AI provider contract and router are provider-independent. The first adapter speaks the OpenAI-compatible chat API but is deliberately restricted to HTTP loopback endpoints (`localhost`, `127.0.0.1`, or `::1`). The default endpoint is `http://127.0.0.1:8080/v1`; no remote endpoint is accepted by this local adapter.
+
+Configure the exact model ID reported by your local server:
+
+```powershell
+$env:SCOPY_LOCAL_AI_URL = "http://127.0.0.1:8080/v1"
+$env:SCOPY_LOCAL_AI_MODEL = "YOUR_EXACT_MODEL_ID"
+# Optional, only if your local server requires a key:
+$env:SCOPY_LOCAL_AI_API_KEY = "YOUR_LOCAL_SERVER_KEY"
+
+npm run dev -- ai health
+npm run dev -- ai chat "Explain the current Scopy architecture."
+```
+
+These environment variables apply to the current PowerShell session. API keys are not written to SQLite or project files. Scopy does not silently fall back to a cloud model. Cloud providers are blocked unless a caller explicitly sets `allowCloudEgress: true` for that request; blocked and authorized egress attempts are audited. No cloud provider adapter is enabled by default.
+
+The first memory repository stores working, episodic, semantic, project, preference, and procedural records with scope, source type/reference, confidence, timestamps, and optional expiry. Search is bounded lexical retrieval with scope filtering and global-memory inclusion; it is not semantic/vector search. Archived and expired records are excluded. Memory create/archive operations are audited.
+
+```powershell
+npm run dev -- memory add preference global "Prefer local-first AI and explicit cloud approval."
+npm run dev -- memory add project project:scopy "Scopy uses SQLite and a local-first provider router."
+npm run dev -- memory search "local AI provider"
+npm run dev -- memory list
+```
+
+Retrieval evaluation begins with deterministic unit tests. Embeddings, automatic memory extraction/consolidation, cloud adapters, streaming, tool calling, and provider failover are intentionally not enabled yet.
