@@ -66,6 +66,7 @@ Commands:
   npm run dev -- approval approve <approval-id>
   npm run dev -- approval reject <approval-id>
   npm run dev -- run start <approved-plan-id>
+  npm run dev -- run execute <run-id> [approval-id]
   npm run dev -- run list
   npm run dev -- run show <run-id>
   npm run dev -- run step start <run-id> <step-id>
@@ -432,6 +433,32 @@ async function main(): Promise<void> {
 
     if (command === "run") {
       const runs = new PlanRunRepository(database);
+      if (subcommand === "execute") {
+        const [runId, approvalId, extra] = args;
+        if (!runId || extra) throw new Error("Usage: run execute <run-id> [approval-id]");
+        const permissions = new PermissionRepository(database);
+        const policy = new PolicyEngine(permissions);
+        const approvals = new ApprovalService(database, policy);
+        const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
+        new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
+        const runtime = new RuntimeEngine(database, gateway);
+        const executor = new PlanStepExecutor(runs, policy, approvals, runtime, logger);
+        const result = await executor.executeReadySteps(runId, {}, approvalId);
+        console.log(JSON.stringify({
+          ...result,
+          notice: result.pausedAt?.reason === "approval_required"
+            ? "Execution paused. Review the exact approval request, approve it, then rerun this command with the approval ID."
+            : result.pausedAt?.reason === "manual_step"
+              ? "Execution paused at a manual step. Complete or fail that step explicitly before continuing."
+              : result.pausedAt?.reason === "in_flight"
+                ? "Execution paused because a step is already running. Do not start another action; inspect or recover only after confirming the prior process stopped."
+                : result.pausedAt?.reason === "blocked"
+                  ? "Execution paused because no step is currently ready. Inspect dependencies and run state."
+                  : "All executable steps have finished or the run is already terminal.",
+        }, null, 2));
+        return;
+      }
+
       if (subcommand === "start") {
         const planId = args[0];
         if (!planId) throw new Error("Usage: run start <approved-plan-id>");

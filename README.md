@@ -54,6 +54,7 @@ npm run dev -- project update <PROJECT_ID> description "Updated project descript
 npm run dev -- task add "Prepare brand strategy" --project <PROJECT_ID>
 npm run dev -- task update <TASK_ID> status in_progress
 npm run dev -- backup create
+npm run dev -- run execute <RUN_ID> [APPROVAL_ID]
 npm run dev -- run recover <RUN_ID> --confirm-process-stopped
 npm run dev -- permission list
 npm run dev -- permission remove <RULE_ID>
@@ -70,6 +71,8 @@ To complete a task, copy its ID from the task list:
 ```powershell
 npm run dev -- task complete <TASK_ID>
 ```
+
+The CLI can also advance a run with `npm run dev -- run execute <RUN_ID>`. It executes consecutive saved filesystem actions in dependency order and stops at an exact approval request or a manual step. After reviewing and approving the requested action, rerun the same command with its approval ID. It never auto-executes unsupported or untyped work.
 
 The CLI can also be run from the compiled output:
 

@@ -15,6 +15,7 @@ import { PlanRepository } from "../src/orchestrator/plan-repository.js";
 import { PlanStepExecutor, PlanStepApprovalRequiredError } from "../src/orchestrator/step-executor.js";
 import { PlanRunRepository } from "../src/orchestrator/run-repository.js";
 import { ToolGateway } from "../src/tools/tool-gateway.js";
+import { FilesystemTool } from "../src/tools/filesystem-tool.js";
 
 const draft = {
   summary: "A one-step execution test plan.",
@@ -37,9 +38,11 @@ async function withExecutor(
     approvals: ApprovalService;
     runtime: RuntimeEngine;
     gateway: ToolGateway;
+    workspace: string;
   }) => Promise<void>,
 ): Promise<void> {
   const home = mkdtempSync(join(tmpdir(), "scopy-step-executor-test-"));
+  const workspace = join(home, "workspace");
   const database = openDatabase(loadConfig(home));
   const rules = new PermissionRepository(database);
   const policy = new PolicyEngine(rules);
@@ -50,7 +53,7 @@ async function withExecutor(
   const runs = new PlanRunRepository(database);
   const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
   try {
-    await callback({ executor, plans, runs, rules, approvals, runtime, gateway });
+    await callback({ executor, plans, runs, rules, approvals, runtime, gateway, workspace });
   } finally {
     database.close();
     rmSync(home, { recursive: true, force: true });
@@ -238,4 +241,44 @@ test("guarded step execution emits structured metadata without logging file cont
   } finally {
     rmSync(logHome, { recursive: true, force: true });
   }
+});
+
+test("run executor processes saved filesystem actions sequentially and pauses for approval", async () => {
+  await withExecutor(async ({ plans, runs, rules, approvals, gateway, executor, workspace }) => {
+    const plan = plans.create("Write and verify a workspace note", {
+      summary: "Create a file, then read it back through guarded filesystem actions.",
+      steps: [
+        {
+          id: "step-1", title: "Write note", description: "Create the note in the workspace.",
+          expectedOutput: "The note is written.", risk: "low", dependsOn: [],
+          action: { tool: "filesystem", action: "write", target: "execution-check.txt", payload: { content: "Scopy sequential execution" } },
+        },
+        {
+          id: "step-2", title: "Verify note", description: "Read the note back from the workspace.",
+          expectedOutput: "The note content is verified.", risk: "low", dependsOn: ["step-1"],
+          action: { tool: "filesystem", action: "read", target: "execution-check.txt" },
+        },
+      ],
+    });
+    plans.review(plan.id, "approved", "user:local");
+    const runId = runs.start(plan.id, "user:local").id;
+    new FilesystemTool({ workspaceRoot: workspace }).register(gateway);
+    rules.setRule({ actorId: "user:local", tool: "filesystem", action: "write", targetPattern: "execution-check.txt", effect: "approval_required" });
+    rules.setRule({ actorId: "user:local", tool: "filesystem", action: "read", targetPattern: "execution-check.txt", effect: "allow" });
+
+    const paused = await executor.executeReadySteps(runId);
+    assert.deepEqual(paused.executedStepIds, []);
+    assert.equal(paused.pausedAt?.reason, "approval_required");
+    const approvalId = paused.pausedAt?.approval?.id;
+    assert.ok(approvalId);
+    assert.equal(runs.getById(runId)?.steps[0]?.status, "ready");
+
+    approvals.approve(approvalId, "user:local");
+    const completed = await executor.executeReadySteps(runId, {}, approvalId);
+    assert.deepEqual(completed.executedStepIds, ["step-1", "step-2"]);
+    assert.equal(completed.run.status, "succeeded");
+    assert.equal(completed.run.steps[1]?.result, '"Scopy sequential execution"');
+    assert.equal(approvals.getById(approvalId)?.status, "consumed");
+    assert.equal(readFileSync(join(workspace, "execution-check.txt"), "utf8"), "Scopy sequential execution");
+  });
 });
