@@ -29,7 +29,7 @@ export class LocalOpenAIProvider implements ModelProvider {
   readonly descriptor: ProviderDescriptor;
   private readonly baseUrl: string;
   private readonly model: string;
-  private readonly apiKey?: string;
+  private readonly apiKey: string | undefined;
   private readonly timeoutMs: number;
 
   constructor(options: LocalOpenAIProviderOptions) {
