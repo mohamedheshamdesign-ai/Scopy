@@ -42,7 +42,9 @@ export function serializeAction(request: ActionRequest): string {
     target: request.target,
     payload: request.payload ?? {},
   };
-  return JSON.stringify(stableValue(normalized));
+  const serialized = JSON.stringify(stableValue(normalized));
+  if (serialized === undefined) throw new Error("Action payload could not be serialized.");
+  return serialized;
 }
 
 export function hashAction(request: ActionRequest): string {
