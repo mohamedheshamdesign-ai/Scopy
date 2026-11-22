@@ -233,6 +233,31 @@ test("terminal adapter executes an exact approved command without a shell", asyn
     assert.equal(result.exitCode, 0);
     assert.equal(result.stdout, "scopy-terminal-ok");
     assert.equal(approvals.getById(approval.id)?.status, "consumed");
+    await assert.rejects(gateway.execute(request, approval.id), PermissionDeniedError);
+  });
+});
+
+
+test("terminal adapter rejects an approval issued for a different command", async () => {
+  await withGateway(async ({ gateway, workspace, approvals }) => {
+    await mkdir(workspace, { recursive: true });
+    new TerminalTool(workspace).register(gateway);
+    const approved = approvals.request({
+      actorId: "user:local",
+      tool: "terminal",
+      action: "run",
+      target: ".",
+      payload: { executable: "node", args: ["--version"], timeoutMs: 5000 },
+    });
+    approvals.approve(approved.id, "user:local");
+    const different = {
+      actorId: "user:local",
+      tool: "terminal",
+      action: "run",
+      target: ".",
+      payload: { executable: "node", args: ["-e", "process.stdout.write('scopy-unapproved')"], timeoutMs: 5000 },
+    };
+    await assert.rejects(gateway.execute(different, approved.id), PermissionDeniedError);
   });
 });
 
