@@ -1,4 +1,5 @@
 import { createLocalAiRouter } from "./ai/create-local-router.js";
+import { listLocalModels } from "./ai/local-openai-provider.js";
 import { loadConfig } from "./config.js";
 import { openDatabase } from "./db/database.js";
 import { MemoryRepository, type MemoryType } from "./memory/memory-repository.js";
@@ -13,8 +14,10 @@ Commands:
   npm run dev -- task add "Task title"
   npm run dev -- task list
   npm run dev -- task complete <task-id>
+  npm run dev -- ai models
   npm run dev -- ai health
   npm run dev -- ai chat "Your prompt"
+  npm run dev -- ai benchmark [max-output-tokens]
   npm run dev -- memory add <type> <scope> "Memory content"
   npm run dev -- memory search "Search query"
   npm run dev -- memory list
@@ -38,12 +41,60 @@ async function main(): Promise<void> {
     }
 
     if (command === "ai") {
+      if (subcommand === "models") {
+        const baseUrl = process.env.SCOPY_LOCAL_AI_URL ?? "http://127.0.0.1:8080/v1";
+        const models = await listLocalModels(baseUrl, process.env.SCOPY_LOCAL_AI_API_KEY);
+        console.log(JSON.stringify({ baseUrl, models }, null, 2));
+        return;
+      }
+
       const router = createLocalAiRouter(database);
       const provider = router.list()[0];
       if (!provider) throw new Error("No AI provider is configured.");
 
       if (subcommand === "health") {
         console.log(JSON.stringify(await router.health(provider.id), null, 2));
+        return;
+      }
+
+      if (subcommand === "benchmark") {
+        const maxOutputTokens = Number(args[0] ?? "256");
+        if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 16 || maxOutputTokens > 2048) {
+          throw new Error("Benchmark output tokens must be an integer between 16 and 2048.");
+        }
+        const context = { actorId: "user:local", purpose: "local CLI benchmark" };
+        const warmup = await router.generate(provider.id, {
+          messages: [{ role: "user", content: "Reply with a short TypeScript example of a typed function." }],
+          temperature: 0,
+          maxOutputTokens: 32,
+        }, context);
+        const measured = await router.generate(provider.id, {
+          messages: [{
+            role: "user",
+            content: "Write a detailed TypeScript implementation of a bounded asynchronous task queue. Include typed task and result interfaces, concurrency limits, error handling, cancellation behavior, and a small usage example. Explain the design briefly.",
+          }],
+          temperature: 0,
+          maxOutputTokens,
+        }, context);
+        const tokensPerSecond = measured.outputTokens !== undefined && measured.durationMs > 0
+          ? Number((measured.outputTokens / (measured.durationMs / 1000)).toFixed(2))
+          : null;
+        console.log(JSON.stringify({
+          providerId: measured.providerId,
+          model: measured.model,
+          warmup: {
+            outputTokens: warmup.outputTokens ?? null,
+            durationMs: warmup.durationMs,
+          },
+          benchmark: {
+            inputTokens: measured.inputTokens ?? null,
+            outputTokens: measured.outputTokens ?? null,
+            requestedMaxOutputTokens: maxOutputTokens,
+            durationMs: measured.durationMs,
+            clientObservedTokensPerSecond: tokensPerSecond,
+          },
+          note: "Client-observed end-to-end rate; includes HTTP and server scheduling latency.",
+        }, null, 2));
         return;
       }
 
