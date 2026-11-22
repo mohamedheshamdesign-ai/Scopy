@@ -201,3 +201,16 @@ test("approval history includes pending, reviewed, and consumed states", async (
     assert.equal(approvals.listAll().some((item) => item.id === pending.id && item.status === "consumed"), true);
   });
 });
+
+test("workspace_assist allows workspace reads, gates changes, and denies other tools", async () => {
+  await withServices(({ rules }) => {
+    const policy = new PolicyEngine(rules, "workspace_assist");
+    const request = (tool: string, action: string, actorId = "user:local") => ({ actorId, tool, action, target: "notes/example.txt", payload: {} });
+    assert.equal(policy.evaluate(request("filesystem", "read")).effect, "allow");
+    assert.equal(policy.evaluate(request("filesystem", "list")).effect, "allow");
+    assert.equal(policy.evaluate(request("filesystem", "write")).effect, "approval_required");
+    assert.equal(policy.evaluate(request("filesystem", "mkdir")).effect, "approval_required");
+    assert.equal(policy.evaluate(request("terminal", "run")).effect, "deny");
+    assert.equal(policy.evaluate(request("filesystem", "read", "agent:developer")).effect, "deny");
+  });
+});

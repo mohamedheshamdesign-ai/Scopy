@@ -12,6 +12,9 @@ test("Scopy config centralizes all local data directories under its home", () =>
   const config = loadConfig(home);
   try {
     assert.equal(config.homeDir, home);
+    assert.equal(config.safetyProfile, "strict");
+    assert.equal(loadConfig(home, { SCOPY_SAFETY_PROFILE: "workspace_assist" }).safetyProfile, "workspace_assist");
+    assert.throws(() => loadConfig(home, { SCOPY_SAFETY_PROFILE: "unsafe" }), /must be strict or workspace_assist/);
     assert.equal(config.databasePath, join(home, "data", "scopy.sqlite"));
     assert.equal(config.workspaceDir, join(home, "workspace"));
     const customWorkspace = loadConfig(home, { SCOPY_WORKSPACE_DIR: join(home, "projects", "matba3ty") });
