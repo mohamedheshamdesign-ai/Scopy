@@ -73,7 +73,7 @@ Default profile:
 - KV cache: default F16.
 - Speculative decoding: off for baseline.
 
-The launcher refuses to start if the expected cached GGUF is missing, free RAM is below 6 GiB, free Vulkan0 VRAM is below 2048 MiB, required flags are unavailable, or port 8080 is already occupied. It uses the local GGUF path, not a Hugging Face download URL. It creates an API key file under E:\Scopy\secrets, restricts its Windows ACL to the current user, SYSTEM, and Administrators, and passes it with --api-key-file (not on the command line). It persists only path and non-secret configuration values in the Windows user environment; the key is loaded into the CLI shell only by the connection script.
+The launcher refuses to start if the expected cached GGUF is missing, free RAM is below 6 GiB, free Vulkan0 VRAM is below 2048 MiB, required flags are unavailable, or port 8080 is already occupied. It uses the local GGUF path, not a Hugging Face download URL. It creates an API key file under E:\Scopy\secrets, restricts its Windows ACL to the current user, SYSTEM, and Administrators, and passes it with --api-key-file (not on the command line). The key file is plaintext protected by NTFS permissions, not encrypted at rest; keep the E: volume and Windows account protected. It persists only path and non-secret configuration values in the Windows user environment; the key is loaded into the CLI shell only by the connection script.
 
 The context can be tested at 4096, 8192, then 16384 only if RAM and VRAM remain healthy:
 
