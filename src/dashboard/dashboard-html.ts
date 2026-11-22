@@ -18,6 +18,7 @@ export const dashboardHtml = String.raw`<!doctype html>
   <button data-page="tasks">☷ &nbsp; Tasks</button>
   <button data-page="projects">▦ &nbsp; Projects</button>
   <button data-page="agents">◉ &nbsp; Agents</button>
+  <button data-page="terminal">⌁ &nbsp; Terminal</button>
   <button data-page="plans">⌘ &nbsp; Plans & Runs</button>
   <button data-page="memory">◌ &nbsp; Memory</button>
   <button data-page="approvals">◇ &nbsp; Approvals</button>
@@ -41,6 +42,7 @@ export const dashboardHtml = String.raw`<!doctype html>
  <section class="section" id="page-chat"><div class="layout"><div class="panel chatbox"><div class="panelhead"><h2>Talk to Scopy</h2><select id="agentSelect" style="max-width:220px" class="field"></select></div><div class="notice">Local model only. No cloud fallback. The assistant can reason and prepare plans; it cannot silently perform unsupported actions.</div><div class="messages" id="messages"><div class="msg ai">Scopy is ready. Connect your local model in this PowerShell session to start.</div></div><div class="chatinput"><textarea id="prompt" placeholder="Tell Scopy what you want to accomplish…"></textarea><button class="primary" id="send">Send ↗</button></div></div><div class="panel"><h2>Specialists</h2><p class="detail">Choose a specialist for focused reasoning. Current profiles are advisory and use the same local model and memory.</p><div class="list" id="agentCards"></div></div></div></section>
  <section class="section" id="page-tasks"><div class="panel"><div class="panelhead"><h2>Task manager</h2><span class="muted small" id="taskCount"></span></div><div class="form"><input id="taskTitle" placeholder="Task title"><select id="taskPriority"><option>normal</option><option>low</option><option>high</option><option>urgent</option></select><select id="taskProject"><option value="">No project</option></select><button class="primary" id="addTask">Add task</button></div><div class="list" id="taskList"></div></div></section>
  <section class="section" id="page-projects"><div class="panel"><div class="panelhead"><h2>Projects</h2></div><div class="form"><input id="projectName" placeholder="Project name"><input id="projectDescription" placeholder="Description"><button class="primary" id="addProject">Create project</button></div><div class="list" id="projectList"></div></div></section>
+ <section class="section" id="page-terminal"><div class="panel"><div class="panelhead"><h2>Controlled terminal</h2><span class="pill warn">APPROVAL REQUIRED</span></div><div class="notice">Commands run without a shell, inside the configured Scopy workspace. Every command is tied to an exact one-time approval. Do not put passwords or API keys in command arguments.</div><div class="form"><select id="terminalExe"><option>powershell.exe</option><option>node</option><option>git</option><option>python</option></select><input id="terminalCwd" value="." placeholder="Working directory relative to workspace"><input id="terminalTimeout" type="number" value="30000" min="1000" max="120000" style="max-width:150px"></div><div class="form"><textarea id="terminalArgs" class="wide" placeholder='Arguments as JSON array, e.g. ["-NoProfile","-Command","Get-ChildItem"]'></textarea></div><div class="actions"><button class="primary" id="terminalRequest">Request exact approval</button><button id="terminalExecute" disabled>Execute approved command</button></div><div id="terminalState" class="detail" style="margin-top:12px"></div><pre id="terminalOutput" style="white-space:pre-wrap;overflow:auto;max-height:360px;background:#06111d;padding:12px;border-radius:9px;font-size:12px"></pre></div></section>
  <section class="section" id="page-agents"><div class="panel"><div class="panelhead"><h2>Agent registry</h2><span class="pill warn">ADVISORY MODE</span></div><p class="detail">Each specialist has a defined role. Tool execution remains centralized in Scopy's permission and approval layer.</p><div class="list" id="agentList"></div></div></section>
  <section class="section" id="page-plans"><div class="panel"><div class="panelhead"><h2>Plan a goal</h2></div><div class="form"><input id="planGoal" placeholder="Describe an outcome for Scopy to plan"><button class="primary" id="createPlan">Generate plan</button></div><div class="list" id="planList"></div></div><div class="panel"><div class="panelhead"><h2>Execution runs</h2></div><div class="list" id="runList"></div></div></section>
  <section class="section" id="page-memory"><div class="panel"><div class="panelhead"><h2>Personal memory</h2><span class="muted small">User-confirmed records</span></div><div class="form"><select id="memoryType"><option>preference</option><option>semantic</option><option>project</option><option>procedural</option><option>episodic</option><option>working</option></select><input id="memoryScope" placeholder="Scope (global by default)"><input id="memoryContent" placeholder="What should Scopy remember?"><button class="primary" id="addMemory">Save memory</button></div><div class="list" id="memoryList"></div></div></section>
@@ -54,7 +56,7 @@ const $=id=>document.getElementById(id);
 let token=location.hash.startsWith("#token=")?location.hash.slice(7):"";
 if(token){history.replaceState(null,"",location.pathname);}
 const state={data:null,lang:"en"};
-const titles={overview:"Overview",chat:"AI Workspace",tasks:"Tasks",projects:"Projects",agents:"Agents",plans:"Plans & Runs",memory:"Memory",approvals:"Approvals",settings:"Settings"};
+const titles={overview:"Overview",chat:"AI Workspace",tasks:"Tasks",projects:"Projects",agents:"Agents",terminal:"Terminal",plans:"Plans & Runs",memory:"Memory",approvals:"Approvals",settings:"Settings"};
 const api=async(path,method="GET",data)=>{const r=await fetch(path,{method,headers:{"authorization":"Bearer "+token,...(data?{"content-type":"application/json"}:{})},body:data?JSON.stringify(data):undefined});const v=await r.json().catch(()=>({error:"Invalid server response"}));if(!r.ok)throw new Error(v.error||("HTTP "+r.status));return v;};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const short=s=>String(s||"").length>110?String(s).slice(0,107)+"…":String(s||"");
@@ -93,13 +95,29 @@ $("createPlan").addEventListener("click",async()=>{try{$("createPlan").disabled=
 $("send").addEventListener("click",async()=>{const prompt=$("prompt").value.trim();if(!prompt)return;const box=$("messages");box.insertAdjacentHTML("beforeend",'<div class="msg user">'+esc(prompt)+'</div>');$("prompt").value="";$("send").disabled=true;try{const result=await api("/api/chat","POST",{prompt,agentId:$("agentSelect").value});box.insertAdjacentHTML("beforeend",'<div class="msg ai">'+esc(result.text)+'<div class="muted small" style="margin-top:8px">'+esc(result.model)+' · '+Math.round(result.durationMs/1000)+'s</div></div>');box.scrollTop=box.scrollHeight;}catch(e){showNotice(e.message,true);}finally{$("send").disabled=false;}});
 $("prompt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("send").click();}});
 $("addPermission").addEventListener("click",async()=>{try{await api("/api/permissions","POST",{actorId:$("permActor").value,tool:$("permTool").value,action:$("permAction").value,targetPattern:$("permTarget").value,effect:$("permEffect").value});await refresh();}catch(e){showNotice(e.message,true);}});
-$("createBackup").addEventListener("click",async()=>{try{$("backupResult").textContent="Creating and verifying…";const r=await api("/api/backups","POST");$("backupResult").textContent="Verified: "+r.name+" · schema "+r.migrationVersion;}catch(e){$("backupResult").textContent=e.message;showNotice(e.message,true);}});
+
+let pendingTerminal=null;
+function terminalPayload(){
+ const args=JSON.parse($("terminalArgs").value||"[]");
+ if(!Array.isArray(args)||!args.every(x=>typeof x==="string"))throw new Error("Arguments must be a JSON array of strings.");
+ return {executable:$("terminalExe").value,args,workingDirectory:$("terminalCwd").value||".",timeoutMs:Number($("terminalTimeout").value||30000)};
+}
+$("terminalRequest").addEventListener("click",async()=>{
+ try{pendingTerminal=terminalPayload();const approval=await api("/api/terminal/requests","POST",pendingTerminal);$("terminalState").textContent="Approval request created: "+approval.id+". Review it in Approvals, then execute the same command."; $("terminalExecute").disabled=true;await refresh();showNotice("Terminal command is waiting for your approval.");}
+ catch(e){showNotice(e.message,true);}
+});
+$("terminalExecute").addEventListener("click",async()=>{
+ if(!pendingTerminal||!pendingTerminal.approvalId){showNotice("Create and approve an exact command request first.",true);return;}
+ try{$("terminalExecute").disabled=true;$("terminalState").textContent="Running approved command…";const result=await api("/api/terminal/execute","POST",{...pendingTerminal,approvalId:pendingTerminal.approvalId});$("terminalOutput").textContent="Exit code: "+result.output.exitCode+"\n\nSTDOUT\n"+result.output.stdout+"\n\nSTDERR\n"+result.output.stderr; $("terminalState").textContent="Completed in "+result.durationMs+" ms.";pendingTerminal=null;await refresh();}
+ catch(e){$("terminalState").textContent=e.message;showNotice(e.message,true);}finally{$("terminalExecute").disabled=true;}
+});
+\n$("createBackup").addEventListener("click",async()=>{try{$("backupResult").textContent="Creating and verifying…";const r=await api("/api/backups","POST");$("backupResult").textContent="Verified: "+r.name+" · schema "+r.migrationVersion;}catch(e){$("backupResult").textContent=e.message;showNotice(e.message,true);}});
 document.body.addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;try{
 if(b.dataset.complete){await api("/api/tasks/"+b.dataset.complete,"PATCH",{status:"completed"});await refresh();}
 if(b.dataset.planApprove||b.dataset.planReject){const id=b.dataset.planApprove||b.dataset.planReject;await api("/api/plans/"+id+"/review","POST",{decision:b.dataset.planApprove?"approved":"rejected"});await refresh();}
 if(b.dataset.run){await api("/api/runs","POST",{planId:b.dataset.run});await refresh();}
 if(b.dataset.execute){const r=await api("/api/runs/"+b.dataset.execute+"/execute","POST",{});await refresh();showNotice(r.pausedAt?"Run paused: "+r.pausedAt.reason:"Run updated.");}
-if(b.dataset.approval){await api("/api/approvals/"+b.dataset.approval+"/review","POST",{decision:b.dataset.decision});await refresh();}
+if(b.dataset.approval){await api("/api/approvals/"+b.dataset.approval+"/review","POST",{decision:b.dataset.decision});if(pendingTerminal&&b.dataset.decision==="approved"){pendingTerminal.approvalId=b.dataset.approval;$("terminalExecute").disabled=false;$("terminalState").textContent="Exact command approved. You can execute it now.";}await refresh();}
 if(b.dataset.archive){await api("/api/memories/"+b.dataset.archive+"/archive","POST",{});await refresh();}
 if(b.dataset.permissionDelete){await api("/api/permissions/"+b.dataset.permissionDelete,"DELETE");await refresh();}
 }catch(err){showNotice(err.message,true);}});
