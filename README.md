@@ -116,7 +116,7 @@ The Runtime Engine wraps gateway calls and stores execution records and checkpoi
 
 Tools should observe `context.signal` and periodically check it during long operations. Cancellation and timeout are cooperative: a handler that ignores the signal may continue running after the Runtime Engine has stopped awaiting it. The output limit is checked after a handler returns and its result is serialized; it limits accepted/persisted output, not peak memory allocated inside a tool. Streaming output enforcement and hard process isolation are future work.
 
-The gateway is an internal application API; no agent or external integration is connected yet. Reviewer identity is currently supplied by the trusted local application layer; authenticated user identity and a local approval interface remain future work.
+The gateway is an internal application API; no tool-enabled agent or external integration is connected yet. Reviewer identity is currently supplied by the trusted local application layer; authenticated user identity and a local approval interface remain future work.
 
 
 ### AI Router and memory (initial local milestone)
@@ -146,7 +146,7 @@ npm run dev -- memory search "local AI provider"
 npm run dev -- memory list
 ```
 
-Retrieval evaluation begins with deterministic unit tests. Embeddings, automatic memory extraction/consolidation, cloud adapters, streaming, tool calling, and provider failover are intentionally not enabled yet.
+CLI chat and advisory specialist agents retrieve up to five relevant active memories using bounded lexical matching; archived and expired memories are excluded. Retrieval evaluation begins with deterministic unit tests. Embeddings, automatic memory extraction/consolidation, cloud adapters, streaming, tool calling, and provider failover are intentionally not enabled yet.
 
 
 ### Windows local AI runtime

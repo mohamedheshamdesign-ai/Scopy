@@ -55,7 +55,7 @@ src/tools/tool-gateway.ts
 tests/ai-router.test.ts
 tests/agents.test.ts
 tests/audit.test.ts
- tests/backup.test.ts
+tests/backup.test.ts
 tests/chat-context.test.ts
 tests/local-router-timeout.test.ts
 tests/memory-repository.test.ts

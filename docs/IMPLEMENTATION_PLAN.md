@@ -77,10 +77,11 @@ Implement only the contracts and infrastructure required for a first working ver
 4. [x] CLI wiring for explicit filesystem actions, permission-rule management, and approval review.
 5. [x] Bounded typed filesystem action proposals stored with reviewed plan steps and copied into runs; the CLI resolves saved actions without hand-written JSON.
 6. [ ] Expand action resolution only through separately validated schemas and registered tools; never execute model-generated free text as a tool call.
-7. [x] Built-in advisory-only agent registry and capability declarations; specialist profiles run through the local chat provider and cannot invoke tools.\n8. [ ] Multi-agent delegation, inter-agent messaging, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
+7. [x] Built-in advisory-only agent registry and capability declarations; specialist profiles run through the local chat provider and cannot invoke tools.
+8. [ ] Multi-agent delegation, inter-agent messaging, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
 8. Delegation, dependencies, and safe checkpoint recovery (including explicit handling of interrupted in-flight steps).
 9. Evaluation of plan quality and execution outcomes.
-10. Add Research and Developer agents first, then expand based on real workflows.
+10. Add tool-enabled Research and Developer agents first, then expand based on real workflows.
 
 **Acceptance:** one multi-step task is planned and reviewed; a run is started; dependency-ordered steps can be advanced manually or executed through the guarded service; default-deny, exact approvals, actor binding, tool failure recording, checkpoints, and audit trails are tested. The CLI currently registers only the filesystem tool. The planner can propose validated filesystem read/write actions; unsupported work remains manual. Automatic interrupted-side-effect recovery is not implemented. A timeout or failed result does not prove that a non-cooperative tool had no side effect; retries require review.
 

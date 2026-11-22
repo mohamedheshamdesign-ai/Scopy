@@ -1,4 +1,3 @@
-import { buildCliChatMessages } from "./ai/chat-context.js";
 import { createLocalAiRouter } from "./ai/create-local-router.js";
 import { listLocalModels } from "./ai/local-openai-provider.js";
 import { loadConfig } from "./config.js";
@@ -151,8 +150,12 @@ async function main(): Promise<void> {
           return;
         }
         const projectContext = await loadProjectContext();
+        const memories = new MemoryRepository(database).search(prompt, { limit: 5 });
+        const assistantProfile = new AgentRegistry().get("assistant");
         const result = await router.generate(provider.id, {
-          messages: buildCliChatMessages(prompt, projectContext),
+          messages: buildAgentMessages(assistantProfile, prompt, projectContext, memories),
+          temperature: 0.2,
+          maxOutputTokens: 1_800,
         }, {
           actorId: "user:local",
           purpose: "local CLI chat",
