@@ -35,6 +35,7 @@ export interface ApprovalRequest {
   readonly tool: string;
   readonly action: string;
   readonly target: string;
+  readonly payload: Readonly<Record<string, unknown>>;
   readonly actionHash: string;
   readonly status: ApprovalStatus;
   readonly requestedAt: string;
