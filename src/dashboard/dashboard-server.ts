@@ -20,6 +20,7 @@ import { ExecutionGuard } from "../permissions/execution-guard.js";
 import { RuntimeEngine } from "../runtime/runtime-engine.js";
 import { ToolGateway } from "../tools/tool-gateway.js";
 import { FilesystemTool } from "../tools/filesystem-tool.js";
+import { TerminalTool } from "../tools/terminal-tool.js";
 import { PlanStepExecutor } from "../orchestrator/step-executor.js";
 import { BackupService } from "../backup/backup-service.js";
 import { dashboardHtml } from "./dashboard-html.js";
@@ -338,6 +339,7 @@ export class DashboardServer {
       const input = await body(request);
       const gateway = new ToolGateway(new ExecutionGuard(this.database, policy, approvals));
       new FilesystemTool({ workspaceRoot: this.config.workspaceDir }).register(gateway);
+      new TerminalTool(this.config.workspaceDir).register(gateway);
       const runtime = new RuntimeEngine(this.database, gateway);
       const executor = new PlanStepExecutor(runs, policy, approvals, runtime);
       const result = await executor.executeReadySteps(runExecute[1]!, {}, optionalString(input, "approvalId", 36));
@@ -371,6 +373,58 @@ export class DashboardServer {
     const permissionDelete = path.match(/^\/api\/permissions\/([0-9a-f-]{36})$/i);
     if (permissionDelete && method === "DELETE") {
       json(response, 200, { removed: permissions.removeRule(permissionDelete[1]!) });
+      return;
+    }
+
+
+    if (method === "POST" && path === "/api/terminal/requests") {
+      const input = await body(request);
+      const executable = stringField(input, "executable", 32);
+      if (!Array.isArray(input.args) || input.args.length > 100 ||
+          !input.args.every((arg) => typeof arg === "string" && arg.length <= 4096)) {
+        throw new Error("Terminal args must be an array of at most 100 strings.");
+      }
+      const workingDirectory = optionalString(input, "workingDirectory", 500) ?? ".";
+      const timeoutMs = input.timeoutMs ?? 30000;
+      if (typeof timeoutMs !== "number" || !Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 120000) {
+        throw new Error("Terminal timeout must be between 1000 and 120000 milliseconds.");
+      }
+      const action = {
+        actorId: ACTOR,
+        tool: "terminal",
+        action: "run",
+        target: workingDirectory,
+        payload: { executable, args: input.args as string[], timeoutMs },
+      };
+      json(response, 201, approvals.request(action));
+      return;
+    }
+
+    if (method === "POST" && path === "/api/terminal/execute") {
+      const input = await body(request);
+      const executable = stringField(input, "executable", 32);
+      if (!Array.isArray(input.args) || input.args.length > 100 ||
+          !input.args.every((arg) => typeof arg === "string" && arg.length <= 4096)) {
+        throw new Error("Terminal args must be an array of at most 100 strings.");
+      }
+      const workingDirectory = optionalString(input, "workingDirectory", 500) ?? ".";
+      const timeoutMs = input.timeoutMs ?? 30000;
+      if (typeof timeoutMs !== "number" || !Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 120000) {
+        throw new Error("Terminal timeout must be between 1000 and 120000 milliseconds.");
+      }
+      const approvalId = stringField(input, "approvalId", 36);
+      const action = {
+        actorId: ACTOR,
+        tool: "terminal",
+        action: "run",
+        target: workingDirectory,
+        payload: { executable, args: input.args as string[], timeoutMs },
+      };
+      const gateway = new ToolGateway(new ExecutionGuard(this.database, policy, approvals));
+      new TerminalTool(this.config.workspaceDir).register(gateway);
+      const runtime = new RuntimeEngine(this.database, gateway);
+      const result = await runtime.execute(action, { timeoutMs: timeoutMs + 5000, maxOutputBytes: 65536 }, approvalId);
+      json(response, 200, result);
       return;
     }
 
