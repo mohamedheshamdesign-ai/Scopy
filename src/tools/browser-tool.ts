@@ -20,6 +20,7 @@ export class BrowserTool {
       async (request: ActionRequest) => {
         try {
           if (request.action === "open") return await this.browser.open(request.target);
+          if (["click", "type", "keypress"].includes(request.action) && this.browser.status().activeUrl !== request.target) throw new Error("The active browser page changed after this exact action was approved. Request approval again.");
           if (request.action === "read") return await this.browser.read();
           if (request.action === "screenshot") return await this.browser.screenshot();
           const payload = request.payload ?? {};
