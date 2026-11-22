@@ -127,21 +127,25 @@ export class RuntimeEngine {
         if (bytes > maxOutputBytes) {
           throw new RuntimeOutputLimitError(maxOutputBytes, bytes);
         }
-        const row = this.database.prepare(
-          "SELECT COALESCE(MAX(sequence), 0) AS sequence FROM execution_checkpoints WHERE run_id = ?",
-        ).get(runId) as { sequence: number };
-        this.database.prepare(`
-          INSERT INTO execution_checkpoints (id, run_id, sequence, checkpoint_json, created_at)
-          VALUES (?, ?, ?, ?, ?)
-        `).run(randomUUID(), runId, row.sequence + 1, checkpointJson, new Date().toISOString());
-        this.audit(runId, "runtime.checkpoint.saved", { sequence: row.sequence + 1, bytes });
+        const saveCheckpoint = this.database.transaction(() => {
+          const row = this.database.prepare(
+            "SELECT COALESCE(MAX(sequence), 0) AS sequence FROM execution_checkpoints WHERE run_id = ?",
+          ).get(runId) as { sequence: number };
+          const sequence = row.sequence + 1;
+          this.database.prepare(`
+            INSERT INTO execution_checkpoints (id, run_id, sequence, checkpoint_json, created_at)
+            VALUES (?, ?, ?, ?, ?)
+          `).run(randomUUID(), runId, sequence, checkpointJson, new Date().toISOString());
+          this.audit(runId, "runtime.checkpoint.saved", { sequence, bytes });
+        });
+        saveCheckpoint();
       },
     };
 
     timer = setTimeout(() => controller.abort(new RuntimeTimeoutError(timeoutMs)), timeoutMs);
-    options.onStarted?.(runId);
 
     try {
+      options.onStarted?.(runId);
       if (controller.signal.aborted) {
         const reason = controller.signal.reason;
         throw reason instanceof Error ? reason : new RuntimeCancelledError();
