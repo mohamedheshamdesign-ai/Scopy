@@ -59,10 +59,12 @@ Implement only the contracts and infrastructure required for a first working ver
 4. [x] Provider registry, model validation, and health checks.
 5. [x] SQLite memory records for working, episodic, semantic, project, preference, and procedural types with provenance, confidence, scope, and expiry.
 6. [x] Bounded lexical retrieval and deterministic retrieval tests before adding embeddings.
-7. [ ] Automatic memory extraction/consolidation and richer retrieval evaluation.
+7. [x] Windows local-runtime launcher, E:-scoped model cache, model integrity diagnostics, model-ID discovery, and CLI throughput benchmark harness.
+8. [ ] Record device-specific speed/RAM/VRAM/context measurements and complete controlled GPU-offload, KV-cache, Flash Attention, and speculative-decoding A/B tests.
+9. [ ] Automatic memory extraction/consolidation and richer retrieval evaluation.
 8. [ ] Optional cloud provider adapters, streaming, and tool calling only after explicit policy and data-boundary review.
 
-**Current limits:** local provider is non-streaming and chat-only. It does not implement tool calls or vision. Memory search is lexical, not embedding-based. Provider failover is intentionally absent: a local provider failure never silently routes private prompts to cloud.
+**Current limits:** local provider is non-streaming and chat-only. It does not implement tool calls or vision. Memory search is lexical, not embedding-based. Provider failover is intentionally absent: a local provider failure never silently routes private prompts to cloud. The Windows runtime launcher and benchmark harness are implemented, but device-specific performance measurements remain pending until executed on the target PC.
 
 **Acceptance:** route a prompt to a configured local model; handle provider unavailable state; reject non-loopback endpoints; no silent cloud fallback; memory results expose source, scope, and confidence; expiry/archive filters work.
 
