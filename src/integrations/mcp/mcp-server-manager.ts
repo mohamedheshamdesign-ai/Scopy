@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface, type Interface as ReadLineInterface } from "node:readline";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
@@ -187,6 +187,12 @@ export class McpServerManager {
     return true;
   }
 
+  async getServerFingerprint(serverId: string): Promise<string> {
+    const server = (await this.list()).find((item) => item.id === serverId);
+    if (!server) throw new Error("MCP server is not configured: " + serverId);
+    return createHash("sha256").update(JSON.stringify(server)).digest("hex");
+  }
+
   async listTools(serverId: string): Promise<McpToolDefinition[]> {
     return this.withSession(serverId, async (session) => {
       const response = await session.request("tools/list");
@@ -202,8 +208,9 @@ export class McpServerManager {
     });
   }
 
-  async callTool(serverId: string, toolName: string, args: Readonly<Record<string, unknown>>): Promise<unknown> {
+  async callTool(serverId: string, toolName: string, args: Readonly<Record<string, unknown>>, expectedFingerprint: string): Promise<unknown> {
     if (!toolName.trim() || toolName.length > 128) throw new Error("MCP tool name is invalid.");
+    if (!/^[a-f0-9]{64}$/.test(expectedFingerprint)) throw new Error("MCP server fingerprint is invalid.");
     return this.withSession(serverId, async (session) => {
       const listed = await session.request("tools/list");
       const tools = listed.result?.tools;
@@ -219,12 +226,15 @@ export class McpServerManager {
       }
       if (result.isError === true) throw new Error("MCP tool returned an error: " + serialized);
       return result;
-    });
+    }, expectedFingerprint);
   }
 
-  private async withSession<T>(serverId: string, operation: (session: McpSession) => Promise<T>): Promise<T> {
+  private async withSession<T>(serverId: string, operation: (session: McpSession) => Promise<T>, expectedFingerprint?: string): Promise<T> {
     const server = (await this.list()).find((item) => item.id === serverId);
     if (!server) throw new Error("MCP server is not configured: " + serverId);
+    if (expectedFingerprint && createHash("sha256").update(JSON.stringify(server)).digest("hex") !== expectedFingerprint) {
+      throw new Error("MCP server configuration changed after approval. Request a new approval for the updated server.");
+    }
     const env: NodeJS.ProcessEnv = {};
     for (const key of ["PATH", "SystemRoot", "WINDIR", "TEMP", "TMP", "HOME", "USERPROFILE", "TMPDIR"]) {
       if (process.env[key] !== undefined) env[key] = process.env[key];
