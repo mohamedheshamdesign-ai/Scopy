@@ -30,8 +30,8 @@
 ## Phase 5 — Browser and computer control
 - Expand the isolated browser beyond navigation/text extraction to reviewed clicks, forms, downloads, and explicit session controls.
 - Domain allowlists, download quarantine, and session isolation.
-- Windows computer/UI adapter behind the tool gateway.
-- Per-action risk checks, explicit approvals, recovery, and evidence capture.
+- Expand the initial UI Automation adapter with screenshots, coordinate/keyboard input where safe, broader app compatibility, and recovery/evidence capture.
+- Per-action risk checks and explicit approvals for all desktop operations.
 
 ## Phase 6 — Workspace and integrations
 - Native desktop packaging and lifecycle.
