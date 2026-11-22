@@ -38,7 +38,7 @@
 - Project/task/run/memory views.
 - Provider and permission settings.
 - Opt-in scoped external integrations.
-- Backup, restore, diagnostics, and upgrade workflow.
+- Full application upgrade workflow. Backup creation, verification, and guarded restore are implemented.
 
 ## How to update this file
 Move an item out of this list only after:

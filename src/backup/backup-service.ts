@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { copyFile, lstat, rename, rm } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 import Database from "better-sqlite3";
 import type { ScopyDatabase } from "../db/database.js";
 
@@ -54,5 +55,86 @@ export class BackupService {
     } finally {
       backup.close();
     }
+  }
+}
+
+export interface BackupRestoreResult {
+  readonly name: string;
+  readonly path: string;
+  readonly migrationVersion: number;
+}
+
+function inspectSnapshot(path: string, expectedMigrationVersion: number): number {
+  const snapshot = new Database(path, { readonly: true, fileMustExist: true });
+  try {
+    const integrity = snapshot.prepare("PRAGMA integrity_check").get() as { integrity_check: string };
+    if (integrity.integrity_check !== "ok") throw new Error("Restore snapshot integrity check failed: " + integrity.integrity_check);
+    const migration = snapshot.prepare("SELECT MAX(version) AS version FROM schema_migrations").get() as { version: number | null };
+    if (migration.version === null) throw new Error("Restore snapshot does not contain Scopy schema migrations.");
+    if (migration.version !== expectedMigrationVersion) {
+      throw new Error(`Restore snapshot schema version ${migration.version} does not match current schema version ${expectedMigrationVersion}.`);
+    }
+    snapshot.prepare("SELECT COUNT(*) AS count FROM tasks").get();
+    snapshot.prepare("SELECT COUNT(*) AS count FROM projects").get();
+    return migration.version;
+  } finally {
+    snapshot.close();
+  }
+}
+
+export async function restoreBackupSnapshot(
+  databasePath: string,
+  backupDirectory: string,
+  name: string,
+  expectedMigrationVersion: number,
+): Promise<BackupRestoreResult> {
+  if (!/^scopy-\d{8}T\d{6}Z-[0-9a-f]{8}\.sqlite$/.test(name)) {
+    throw new Error("Backup name is invalid. Restore only a filename created by Scopy inside the backups directory.");
+  }
+  if (!Number.isInteger(expectedMigrationVersion) || expectedMigrationVersion < 1) {
+    throw new Error("Expected database schema version is invalid.");
+  }
+  const sourcePath = join(backupDirectory, name);
+  const sourceInfo = await lstat(sourcePath);
+  if (!sourceInfo.isFile() || sourceInfo.isSymbolicLink()) {
+    throw new Error("Restore source must be a regular Scopy backup file, not a directory or symbolic link.");
+  }
+  const databaseInfo = await lstat(databasePath);
+  if (!databaseInfo.isFile() || databaseInfo.isSymbolicLink()) {
+    throw new Error("Current Scopy database must be a regular file before restore.");
+  }
+  const directory = dirname(databasePath);
+  const databaseName = basename(databasePath);
+  const stagingPath = join(directory, `.${databaseName}.restore-${randomUUID()}.tmp`);
+  const rollbackPath = join(directory, `.${databaseName}.rollback-${randomUUID()}.sqlite`);
+  await copyFile(sourcePath, stagingPath);
+  try {
+    const migrationVersion = inspectSnapshot(stagingPath, expectedMigrationVersion);
+    for (const sidecar of [`${databasePath}-wal`, `${databasePath}-shm`]) {
+      try {
+        await lstat(sidecar);
+        throw new Error("SQLite sidecar files remain beside the database. Close every Scopy process and retry the restore.");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+    }
+    await rename(databasePath, rollbackPath);
+    try {
+      await rename(stagingPath, databasePath);
+      inspectSnapshot(databasePath, expectedMigrationVersion);
+      await rm(rollbackPath, { force: true });
+      return { name, path: databasePath, migrationVersion };
+    } catch (error) {
+      await rm(databasePath, { force: true });
+      try {
+        await rename(rollbackPath, databasePath);
+      } catch (rollbackError) {
+        const rollbackMessage = rollbackError instanceof Error ? rollbackError.message : "unknown rollback error";
+        throw new Error(`Restore failed and the original database could not be put back. Preserve the safety backup. Rollback error: ${rollbackMessage}`);
+      }
+      throw error;
+    }
+  } finally {
+    await rm(stagingPath, { force: true });
   }
 }

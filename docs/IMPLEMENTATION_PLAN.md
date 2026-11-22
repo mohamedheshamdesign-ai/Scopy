@@ -30,7 +30,7 @@ Build small, testable vertical slices. Every consequential action must pass the 
 6. [x] Task IDs, timestamps, status/priority updates, completion, and audit events.
 7. [x] Unit/integration tests and Windows/Linux CI.
 
-**Acceptance:** create, list, show, update, and complete tasks; create/list/show/update/archive projects; restart Scopy and verify persistence. SQLite backup creation and integrity verification are implemented and tested; restore remains open.
+**Acceptance:** create, list, show, update, and complete tasks; create/list/show/update/archive projects; restart Scopy and verify persistence. SQLite backup creation, integrity verification, and restore with a retained pre-restore safety snapshot are implemented and tested.
 
 ## Phase 2 — Controlled execution
 
@@ -94,7 +94,7 @@ Build small, testable vertical slices. Every consequential action must pass the 
 2. [ ] Project/task/run/memory views.
 3. [ ] Provider and permission settings UI.
 4. [ ] External integrations, each opt-in and scoped.
-5. [ ] Backup restore and upgrade workflow. Backup creation and integrity verification exist; restore does not.
+5. [x] Backup restore with schema-version validation, staged-file verification, atomic replacement, and rollback protection. A broader application upgrade workflow remains open.
 
 **Acceptance:** projects and agent work can be managed and reviewed from one local interface.
 

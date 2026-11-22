@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { BackupService } from "../src/backup/backup-service.js";
+import { BackupService, restoreBackupSnapshot } from "../src/backup/backup-service.js";
 import { loadConfig } from "../src/config.js";
 import { openDatabase } from "../src/db/database.js";
 import { ProjectRepository } from "../src/projects/project-repository.js";
@@ -30,6 +30,49 @@ test("SQLite backups are consistent, verifiable, and confined to Scopy backup na
     assert.throws(() => backups.verify("../outside.sqlite"), /filename created by Scopy/);
   } finally {
     database.close();
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("SQLite restore replaces the database from a verified snapshot after the caller closes it", async () => {
+  const home = await mkdtemp(join(tmpdir(), "scopy-restore-test-"));
+  const config = loadConfig(home);
+  let database: ReturnType<typeof openDatabase> | undefined = openDatabase(config);
+  try {
+    new TaskRepository(database).create({ title: "Before snapshot" });
+    const backups = new BackupService(database, home);
+    const snapshot = await backups.create();
+    new TaskRepository(database).create({ title: "After snapshot" });
+    const safetyBackup = await backups.create();
+    const currentVersion = database.prepare("SELECT MAX(version) AS version FROM schema_migrations").get() as { version: number };
+    database.close();
+    database = undefined;
+    const restored = await restoreBackupSnapshot(config.databasePath, config.backupsDir, snapshot.name, currentVersion.version);
+    assert.equal(restored.migrationVersion, currentVersion.version);
+    database = openDatabase(config);
+    const tasks = new TaskRepository(database).list();
+    assert.deepEqual(tasks.map((task) => task.title), ["Before snapshot"]);
+    assert.equal(new BackupService(database, home).verify(safetyBackup.name).taskCount, 2);
+  } finally {
+    database?.close();
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("SQLite restore rejects a schema mismatch before replacing the current database", async () => {
+  const home = await mkdtemp(join(tmpdir(), "scopy-restore-mismatch-test-"));
+  const config = loadConfig(home);
+  let database: ReturnType<typeof openDatabase> | undefined = openDatabase(config);
+  try {
+    new TaskRepository(database).create({ title: "Keep this record" });
+    const snapshot = await new BackupService(database, home).create();
+    database.close();
+    database = undefined;
+    await assert.rejects(restoreBackupSnapshot(config.databasePath, config.backupsDir, snapshot.name, 999), /does not match current schema version/);
+    database = openDatabase(config);
+    assert.deepEqual(new TaskRepository(database).list().map((task) => task.title), ["Keep this record"]);
+  } finally {
+    database?.close();
     await rm(home, { recursive: true, force: true });
   }
 });

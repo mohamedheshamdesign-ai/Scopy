@@ -12,7 +12,7 @@ import { PlanRepository } from "./orchestrator/plan-repository.js";
 import { PlanRunRepository } from "./orchestrator/run-repository.js";
 import { TaskNotFoundError, TaskRepository, type TaskPriority, type TaskStatus } from "./tasks/task-repository.js";
 import { ProjectRepository } from "./projects/project-repository.js";
-import { BackupService } from "./backup/backup-service.js";
+import { BackupService, restoreBackupSnapshot } from "./backup/backup-service.js";
 import { AuditRepository } from "./audit/audit-repository.js";
 import { ApprovalService } from "./permissions/approval-service.js";
 import { ExecutionGuard } from "./permissions/execution-guard.js";
@@ -42,6 +42,7 @@ Commands:
   npm run dev -- project archive <project-id>
   npm run dev -- backup create
   npm run dev -- backup verify <backup-filename>
+  npm run dev -- backup restore <backup-filename>
   npm run dev -- ai models
   npm run dev -- ai health
   npm run dev -- ai chat "Your prompt"
@@ -83,6 +84,7 @@ async function main(): Promise<void> {
   const [command, subcommand, ...args] = process.argv.slice(2);
   const config = loadConfig();
   const database = openDatabase(config);
+  let databaseOpen = true;
   const logger = new ScopyLogger(config.logsDir);
   logger.info("cli.command.started", { command: command ?? "unknown", subcommand: subcommand ?? null });
 
@@ -300,7 +302,27 @@ async function main(): Promise<void> {
         console.log(JSON.stringify(backups.verify(name), null, 2));
         return;
       }
-      throw new Error("Usage: backup <create|verify> [backup-filename]");
+      if (subcommand === "restore") {
+        const name = args[0];
+        if (!name || args.length !== 1) throw new Error("Usage: backup restore <backup-filename>");
+        const currentSchema = database.prepare("SELECT MAX(version) AS version FROM schema_migrations").get() as { version: number | null };
+        if (currentSchema.version === null) throw new Error("Current Scopy database schema is missing.");
+        const candidate = backups.verify(name);
+        if (candidate.migrationVersion !== currentSchema.version) {
+          throw new Error(`Backup schema version ${candidate.migrationVersion} does not match current schema version ${currentSchema.version}.`);
+        }
+        const safetyBackup = await backups.create();
+        database.close();
+        databaseOpen = false;
+        const restored = await restoreBackupSnapshot(config.databasePath, config.backupsDir, name, currentSchema.version);
+        console.log(JSON.stringify({
+          ...restored,
+          safetyBackup: safetyBackup.name,
+          notice: "Restore completed. A verified pre-restore safety backup was retained in the backups directory.",
+        }, null, 2));
+        return;
+      }
+      throw new Error("Usage: backup <create|verify|restore> [backup-filename]");
     }
 
     if (command === "project") {
@@ -687,7 +709,7 @@ async function main(): Promise<void> {
     }
     throw error;
   } finally {
-    database.close();
+    if (databaseOpen) database.close();
   }
 }
 
