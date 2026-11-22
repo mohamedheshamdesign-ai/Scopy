@@ -10,6 +10,7 @@ import { PlanRepository } from "./orchestrator/plan-repository.js";
 import { PlanRunRepository } from "./orchestrator/run-repository.js";
 import { TaskNotFoundError, TaskRepository, type TaskPriority, type TaskStatus } from "./tasks/task-repository.js";
 import { ProjectRepository } from "./projects/project-repository.js";
+import { BackupService } from "./backup/backup-service.js";
 import { join } from "node:path";
 import { ApprovalService } from "./permissions/approval-service.js";
 import { ExecutionGuard } from "./permissions/execution-guard.js";
@@ -34,6 +35,8 @@ Commands:
   npm run dev -- project list [--all]
   npm run dev -- project show <project-id>
   npm run dev -- project archive <project-id>
+  npm run dev -- backup create
+  npm run dev -- backup verify <backup-filename>
   npm run dev -- ai models
   npm run dev -- ai health
   npm run dev -- ai chat "Your prompt"
@@ -191,6 +194,21 @@ async function main(): Promise<void> {
       printUsage();
       process.exitCode = 1;
       return;
+    }
+
+    if (command === "backup") {
+      const backups = new BackupService(database, config.homeDir);
+      if (subcommand === "create") {
+        console.log(JSON.stringify(await backups.create(), null, 2));
+        return;
+      }
+      if (subcommand === "verify") {
+        const name = args[0];
+        if (!name) throw new Error("Usage: backup verify <backup-filename>");
+        console.log(JSON.stringify(backups.verify(name), null, 2));
+        return;
+      }
+      throw new Error("Usage: backup <create|verify> [backup-filename]");
     }
 
     if (command === "project") {

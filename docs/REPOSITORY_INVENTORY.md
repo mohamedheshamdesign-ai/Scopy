@@ -28,6 +28,7 @@ src/ai/create-local-router.ts
 src/ai/local-openai-provider.ts
 src/ai/provider-router.ts
 src/ai/types.ts
+src/backup/backup-service.ts
 src/cli.ts
 src/config.ts
 src/db/database.ts
@@ -50,6 +51,7 @@ src/tasks/task-repository.ts
 src/tools/filesystem-tool.ts
 src/tools/tool-gateway.ts
 tests/ai-router.test.ts
+ tests/backup.test.ts
 tests/chat-context.test.ts
 tests/local-router-timeout.test.ts
 tests/memory-repository.test.ts

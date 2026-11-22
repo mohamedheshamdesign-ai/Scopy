@@ -12,7 +12,9 @@ This document describes code presence, not a claim that the current local checko
 | Node.js/TypeScript CLI entry point | Implemented | `src/cli.ts`, `package.json` | CLI exposes health, task, AI, benchmark, and memory commands. |
 | Local application paths/config | Partial | `src/config.ts` | Resolves home/data/database paths; no schema validation or advanced configuration validation is present in this file. |
 | SQLite connection and versioned migrations | Implemented | `src/db/database.ts` | Migrations v1-v6 create tasks/audit, permissions/approvals, execution/checkpoints, memory, orchestrator plans, and orchestrator run/step/checkpoint tables. |
-| Project repository | Implemented, initial lifecycle | `src/projects/project-repository.ts`, `src/db/database.ts` | `tests/projects.test.ts`; projects can be created, listed, inspected, and archived. Archived projects cannot receive new tasks; existing linked tasks remain accessible. |\n| Task create/read/list/update/complete repository | Implemented | `src/tasks/task-repository.ts` | `tests/task-repository.test.ts`, `tests/projects.test.ts`; tasks support project association, filtering, status/priority updates, and completion. |
+| Project repository | Implemented, initial lifecycle | `src/projects/project-repository.ts`, `src/db/database.ts` | `tests/projects.test.ts`; projects can be created, listed, inspected, and archived. Archived projects cannot receive new tasks; existing linked tasks remain accessible. |
+| SQLite backup create/verify | Implemented, no restore command yet | `src/backup/backup-service.ts`, `src/cli.ts` | `tests/backup.test.ts`; uses SQLite online backup, integrity-checks the snapshot, reports schema version and task/project counts, and only verifies generated filenames under the Scopy backups directory. Restore is not implemented. |
+| Task create/read/list/update/complete repository | Implemented | `src/tasks/task-repository.ts` | `tests/task-repository.test.ts`, `tests/projects.test.ts`; tasks support project association, filtering, status/priority updates, and completion. |
 | Task audit events | Implemented for task create/update/complete | `src/tasks/task-repository.ts`, `src/db/database.ts` | Task create, update, and completion emit audit events. |
 | Permission rules and policy decisions | Implemented | `src/permissions/policy-engine.ts`, `src/permissions/permission-repository.ts`, `src/permissions/types.ts` | `tests/permissions.test.ts`; default-deny and scoped rules are described in implementation plan and code. |
 | Approval lifecycle and one-time payload-bound approvals | Implemented | `src/permissions/approval-service.ts` | `tests/permissions.test.ts`; approvals are bound to actor/tool/action/target/payload. |
@@ -47,6 +49,7 @@ This document describes code presence, not a claim that the current local checko
 - General structured logging with secret redaction.
 - General stable error taxonomy/serialization.
 - A projects repository/API.
+- SQLite backup restore workflow; backups can be created and verified but not restored through the CLI.
 - OS-level process isolation for filesystem or tool execution.
 
 A feature listed here as absent may be added later. Re-inspect source and tests before changing its status.
