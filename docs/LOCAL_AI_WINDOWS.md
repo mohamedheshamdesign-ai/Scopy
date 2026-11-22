@@ -73,7 +73,7 @@ Default profile:
 - KV cache: default F16.
 - Speculative decoding: off for baseline.
 
-The launcher refuses to start if the expected cached GGUF is missing or port 8080 is already occupied. It uses the local GGUF path, not a Hugging Face download URL. It persists only path and non-secret configuration values in the current Windows user environment.
+The launcher refuses to start if the expected cached GGUF is missing, free RAM is below 6 GiB, free Vulkan0 VRAM is below 2048 MiB, required flags are unavailable, or port 8080 is already occupied. It uses the local GGUF path, not a Hugging Face download URL. It persists only path and non-secret configuration values in the current Windows user environment.
 
 The context can be tested at 4096, 8192, then 16384 only if RAM and VRAM remain healthy:
 
