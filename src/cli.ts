@@ -109,7 +109,13 @@ async function main(): Promise<void> {
           return;
         }
         const projectDocuments: string[] = [];
-        for (const documentName of ["ARCHITECTURE.md", "IMPLEMENTATION_PLAN.md"]) {
+        for (const documentName of [
+          "REPOSITORY_INVENTORY.md",
+          "IMPLEMENTED_FEATURES.md",
+          "PLANNED_FEATURES.md",
+          "ARCHITECTURE.md",
+          "IMPLEMENTATION_PLAN.md",
+        ]) {
           try {
             projectDocuments.push(await readFile(
               resolve(process.cwd(), "docs", documentName),
