@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Buffer } from "node:buffer";
 import type { ScopyDatabase } from "../db/database.js";
 import type { PlanRisk, PlanStatus } from "./plan.js";
 
@@ -232,11 +233,13 @@ export class PlanRunRepository {
           UPDATE orchestrator_runs SET status = 'succeeded', updated_at = ?, finished_at = ?
           WHERE id = ? AND status = 'running'
         `).run(now, now, runId);
-        this.audit(runId, "orchestrator.run.succeeded", { stepId }, now);
       } else {
         this.touchRun(runId, now);
       }
       this.audit(runId, "orchestrator.step.succeeded", { stepId, result: normalized }, now);
+      if (this.requireRun(runId).status === "succeeded") {
+        this.audit(runId, "orchestrator.run.succeeded", { stepId }, now);
+      }
       this.saveCheckpoint(runId, "step.succeeded", now);
     });
     transition();
@@ -377,7 +380,7 @@ export class PlanRunRepository {
     const snapshot = this.getById(runId);
     if (!snapshot) throw new PlanRunNotFoundError(runId);
     const serialized = JSON.stringify(snapshot);
-    if (serialized.length > 128_000) throw new Error("Run checkpoint exceeds the 128KB safety limit.");
+    if (Buffer.byteLength(serialized, "utf8") > 128_000) throw new Error("Run checkpoint exceeds the 128KB safety limit.");
     const row = this.database.prepare(
       "SELECT COALESCE(MAX(sequence), 0) AS sequence FROM orchestrator_run_checkpoints WHERE run_id = ?",
     ).get(runId) as { sequence: number };
