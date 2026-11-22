@@ -24,6 +24,7 @@ export async function runDoctor(
   databaseError?: string,
 ): Promise<DoctorReport> {
   const checks: DoctorCheck[] = [];
+  checks.push({ name: "safety_profile", status: "ok", detail: config.safetyProfile });
   if (!database) {
     checks.push({ name: "database", status: "error", detail: databaseError ?? "Scopy database could not be opened read-only." });
     checks.push({ name: "schema", status: "error", detail: "Schema check unavailable without an existing database." });

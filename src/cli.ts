@@ -452,7 +452,7 @@ async function main(): Promise<void> {
 
     if (command === "approval") {
       const permissions = new PermissionRepository(database);
-      const policy = new PolicyEngine(permissions);
+      const policy = new PolicyEngine(permissions, config.safetyProfile);
       const approvals = new ApprovalService(database, policy);
       if (subcommand === "list") {
         console.log(JSON.stringify(args.includes("--all") ? approvals.listAll() : approvals.listPending(), null, 2));
@@ -475,7 +475,7 @@ async function main(): Promise<void> {
         const [runId, approvalId, extra] = args;
         if (!runId || extra) throw new Error("Usage: run execute <run-id> [approval-id]");
         const permissions = new PermissionRepository(database);
-        const policy = new PolicyEngine(permissions);
+        const policy = new PolicyEngine(permissions, config.safetyProfile);
         const approvals = new ApprovalService(database, policy);
         const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
         new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
@@ -557,7 +557,7 @@ async function main(): Promise<void> {
           if (!existingRun) throw new Error(`Plan run not found: ${runId}`);
           if (details.length <= 1) {
             const permissions = new PermissionRepository(database);
-            const policy = new PolicyEngine(permissions);
+            const policy = new PolicyEngine(permissions, config.safetyProfile);
             const approvals = new ApprovalService(database, policy);
             const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
             new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
@@ -599,7 +599,7 @@ async function main(): Promise<void> {
             throw new Error('Filesystem write requires payload JSON with a string "content" field.');
           }
           const permissions = new PermissionRepository(database);
-          const policy = new PolicyEngine(permissions);
+          const policy = new PolicyEngine(permissions, config.safetyProfile);
           const approvals = new ApprovalService(database, policy);
           const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
           new FilesystemTool({ workspaceRoot: config.workspaceDir }).register(gateway);
