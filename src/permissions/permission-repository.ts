@@ -40,19 +40,29 @@ export class PermissionRepository {
 
     const now = new Date().toISOString();
     const id = randomUUID();
-    this.database.prepare(`
-      INSERT INTO permission_rules (
-        id, actor_id, tool_name, action_name, target_pattern, effect, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(actor_id, tool_name, action_name, target_pattern)
-      DO UPDATE SET effect = excluded.effect, updated_at = excluded.updated_at
-    `).run(id, actorId, tool, action, targetPattern, input.effect, now, now);
+    const save = this.database.transaction(() => {
+      this.database.prepare(`
+        INSERT INTO permission_rules (
+          id, actor_id, tool_name, action_name, target_pattern, effect, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(actor_id, tool_name, action_name, target_pattern)
+        DO UPDATE SET effect = excluded.effect, updated_at = excluded.updated_at
+      `).run(id, actorId, tool, action, targetPattern, input.effect, now, now);
 
-    const row = this.database.prepare(`
-      SELECT * FROM permission_rules
-      WHERE actor_id = ? AND tool_name = ? AND action_name = ? AND target_pattern = ?
-    `).get(actorId, tool, action, targetPattern) as PermissionRuleRow;
-    return mapRule(row);
+      const row = this.database.prepare(`
+        SELECT * FROM permission_rules
+        WHERE actor_id = ? AND tool_name = ? AND action_name = ? AND target_pattern = ?
+      `).get(actorId, tool, action, targetPattern) as PermissionRuleRow;
+
+      this.database.prepare(`
+        INSERT INTO audit_events (id, event_type, entity_type, entity_id, payload_json, created_at)
+        VALUES (?, 'permission.rule.set', 'permission_rule', ?, ?, ?)
+      `).run(randomUUID(), row.id, JSON.stringify({
+        actorId, tool, action, targetPattern, effect: input.effect,
+      }), now);
+      return mapRule(row);
+    });
+    return save();
   }
 
   findMatching(actorId: string, tool: string, action: string, target: string): PermissionRule | null {
