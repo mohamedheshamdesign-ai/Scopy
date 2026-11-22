@@ -4,6 +4,7 @@ import type {
   GenerateRequest,
   GenerateResponse,
   ModelProvider,
+  ProviderDescriptor,
   ProviderHealth,
 } from "./types.js";
 
@@ -19,12 +20,12 @@ export class ProviderRouter {
     this.providers.set(id, provider);
   }
 
-  list(): ReturnType<ModelProvider["descriptor"]["capabilities"] extends never ? never : () => never> {
+  list(): ProviderDescriptor[] {
     return [...this.providers.values()].map((provider) => ({
       ...provider.descriptor,
       models: [...provider.descriptor.models],
       capabilities: { ...provider.descriptor.capabilities },
-    })) as never;
+    }));
   }
 
   async health(providerId: string, signal?: AbortSignal): Promise<ProviderHealth> {
