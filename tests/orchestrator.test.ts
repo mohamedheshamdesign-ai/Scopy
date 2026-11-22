@@ -28,12 +28,10 @@ const validDraft = {
       dependsOn: ["step-1"],
     },
   ],
-};
+} as const;
 
 test("planner validates ordered steps and parses fenced JSON", () => {
-  const parsed = parsePlannerResponse(```json
-${JSON.stringify(validDraft)}
-```);
+  const parsed = parsePlannerResponse(" ```json\n" + JSON.stringify(validDraft) + "\n``` ");
   assert.equal(parsed.steps.length, 2);
   assert.deepEqual(parsed.steps[1]?.dependsOn, ["step-1"]);
 });
