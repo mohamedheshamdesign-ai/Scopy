@@ -73,7 +73,7 @@ Default profile:
 - KV cache: default F16.
 - Speculative decoding: off for baseline.
 
-The launcher refuses to start if the expected cached GGUF is missing, free RAM is below 6 GiB, free Vulkan0 VRAM is below 2048 MiB, required flags are unavailable, or port 8080 is already occupied. It uses the local GGUF path, not a Hugging Face download URL. It persists only path and non-secret configuration values in the current Windows user environment.
+The launcher refuses to start if the expected cached GGUF is missing, free RAM is below 6 GiB, free Vulkan0 VRAM is below 2048 MiB, required flags are unavailable, or port 8080 is already occupied. It uses the local GGUF path, not a Hugging Face download URL. It creates an API key file under E:\Scopy\secrets, restricts its Windows ACL to the current user, SYSTEM, and Administrators, and passes it with --api-key-file (not on the command line). It persists only path and non-secret configuration values in the Windows user environment; the key is loaded into the CLI shell only by the connection script.
 
 The context can be tested at 4096, 8192, then 16384 only if RAM and VRAM remain healthy:
 
@@ -87,19 +87,15 @@ Do not assume the model's advertised 262K context is practical on this 32 GB / 6
 
 ## 3. Discover the exact API model ID
 
-In a second PowerShell window:
-
-~~~
-Invoke-RestMethod "http://127.0.0.1:8080/v1/models" | ConvertTo-Json -Depth 6
-~~~
-
-Connect Scopy to the exact model ID returned by the local server:
+In a second PowerShell window, connect Scopy to the running authenticated server:
 
 ~~~
 . .\scripts\connect-local-ai.ps1
 ~~~
 
-The script selects the model automatically when exactly one model is served, validates the ID, sets the current PowerShell environment, and persists non-secret Scopy settings in the user environment. If multiple models are served, pass -ModelId explicitly. The ai models CLI command also lists available model IDs. Do not guess the model ID from the Hugging Face repository name.
+The script reads the protected key file, requests the served model IDs with Bearer authentication, selects the model automatically when exactly one model is served, validates the ID, and sets the current PowerShell environment. It persists only non-secret Scopy settings in the user environment. If multiple models are served, pass -ModelId explicitly.
+
+The ai models CLI command also lists available model IDs after the connection script has loaded the key into the current shell. Do not guess the model ID from the Hugging Face repository name.
 
 ## 4. Scopy health and real chat
 
@@ -109,7 +105,7 @@ npm run dev -- ai health
 npm run dev -- ai chat "Explain the Scopy architecture and list three concrete improvements."
 ~~~
 
-Scopy's local adapter accepts only HTTP loopback endpoints. It does not silently fall back to cloud. The router has no cloud provider enabled by default, and cloud egress remains blocked unless a caller explicitly opts in at the router API.
+Scopy local adapter accepts only HTTP loopback endpoints and sends the local Bearer key from the current PowerShell session. It does not silently fall back to cloud. The router has no cloud provider enabled by default, and cloud egress remains blocked unless a caller explicitly opts in at the router API.
 
 ## 5. Benchmark generation speed
 
