@@ -60,8 +60,8 @@ export function validateGeneratedPlan(value: unknown): GeneratedPlanDraft {
       throw new Error(`Plan step ${id} dependencies must be an array of step IDs.`);
     }
     const dependsOn = rawStep.dependsOn.map((item) => item.trim());
-    if (new Set(dependsOn).size !== dependsOn.length || dependsOn.includes(id)) {
-      throw new Error(`Plan step ${id} has duplicate or self dependencies.`);
+    if (new Set(dependsOn).size !== dependsOn.length) {
+      throw new Error(`Plan step ${id} has duplicate dependencies.`);
     }
     return {
       id,
@@ -76,6 +76,9 @@ export function validateGeneratedPlan(value: unknown): GeneratedPlanDraft {
   const ids = new Set(steps.map((step) => step.id));
   if (ids.size !== steps.length) throw new Error("Plan step IDs must be unique.");
   for (const step of steps) {
+    if (step.dependsOn.includes(step.id)) {
+      throw new Error(`Plan step ${step.id} cannot depend on itself.`);
+    }
     for (const dependency of step.dependsOn) {
       if (!ids.has(dependency)) {
         throw new Error(`Plan step ${step.id} depends on an unknown step: ${dependency}`);
