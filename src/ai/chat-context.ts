@@ -8,21 +8,32 @@ const BASE_SYSTEM_PROMPT = [
   "Use concise structure. Do not repeat headings, paragraphs, or sections.",
 ].join("\n");
 
+const PROJECT_EVIDENCE_RULES = [
+  "PROJECT EVIDENCE RULES — mandatory:",
+  "1. The repository inventory is the only supplied authority for which tracked paths exist. Never invent, rename, or infer a path from an architecture diagram, concept, or planned folder layout.",
+  "2. A feature is Implemented only when the supplied implemented-features record gives direct source-code evidence. Cite exact paths in your answer.",
+  "3. A test file proves that test code exists, not that the tests passed. Claim tests passed only when the user supplies a fresh successful test result.",
+  "4. Treat every item in the planned-features document and every unchecked implementation-plan item as Planned, never Implemented.",
+  "5. If evidence is missing, conflicting, or not supplied, say Unverified. Do not fill gaps with likely architecture or assumptions.",
+  "6. Keep these categories separate: repository paths that exist, implemented capabilities, partial capabilities, planned capabilities, and unverified claims.",
+  "7. Do not map source folders into hypothetical core/, agents/, tools/, or integrations/ paths. Use the exact path spelling in the inventory.",
+].join("\n");
+
 export function buildCliChatMessages(
   prompt: string,
-  architectureDocument?: string,
+  projectContext?: string,
 ): ChatMessage[] {
   const messages: ChatMessage[] = [
     { role: "system", content: BASE_SYSTEM_PROMPT },
   ];
-  const asksAboutScopy = /\bscopy\b|architecture|implementation plan|project structure/i.test(prompt);
-  if (asksAboutScopy && architectureDocument?.trim()) {
+  const asksAboutProject = /\bscopy\b|\brepository\b|\brepo\b|codebase|architecture|implementation plan|implemented features|project structure|modules|files and modules/i.test(prompt);
+  if (asksAboutProject && projectContext?.trim()) {
     messages.push({
       role: "system",
       content: [
-        "Verified Scopy project context follows. Treat it as the source of truth about the current architecture.",
-        "Do not infer that planned or future components are already implemented.",
-        architectureDocument.slice(0, 16_000),
+        PROJECT_EVIDENCE_RULES,
+        "The following project records are supplied evidence. Prefer the repository inventory and implemented-features record for current-state questions. Architecture and implementation-plan documents describe intent and future work, not proof of implementation.",
+        projectContext.slice(0, 24_000),
       ].join("\n\n"),
     });
   }
