@@ -21,6 +21,8 @@ import { ExecutionGuard } from "../permissions/execution-guard.js";
 import { FilesystemTool } from "../tools/filesystem-tool.js";
 import { ToolGateway } from "../tools/tool-gateway.js";
 import { searchWeb } from "../research/web-research.js";
+import { TerminalTool } from "../tools/terminal-tool.js";
+import type { ActionRequest } from "../permissions/types.js";
 
 export interface LocalAppHandle { readonly url: string; close(): Promise<void>; }
 
@@ -61,7 +63,7 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Port must be between 1024 and 65535.");
   const token = randomBytes(32).toString("hex");
   const tasks = new TaskRepository(database); const projects = new ProjectRepository(database); const memories = new MemoryRepository(database);
-  const agents = new AgentRegistry(); const policy = new PolicyEngine(new PermissionRepository(database), config.safetyProfile); const approvals = new ApprovalService(database, policy); const plans = new PlanRepository(database); const runs = new PlanRunRepository(database); const approvalRunIds = new Map<string, string>();
+  const agents = new AgentRegistry(); const permissionRepo = new PermissionRepository(database); const policy = new PolicyEngine(permissionRepo, config.safetyProfile); const approvals = new ApprovalService(database, policy); const plans = new PlanRepository(database); const runs = new PlanRunRepository(database); const approvalRunIds = new Map<string, string>(); const pendingTerminalActions = new Map<string, ActionRequest>();
   const server = createServer(async (request, response) => {
     try {
       if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(request.headers.host ?? "")) return send(response, 403, { error: "Localhost only." });
@@ -77,6 +79,26 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
       if (request.method === "POST" && url.pathname === "/api/projects") { const b = await readBody(request); if (typeof b.name !== "string") return send(response, 400, { error: "Project name is required." }); return send(response, 201, projects.create({ name: b.name, ...(typeof b.description === "string" ? { description: b.description } : {}) })); }
       if (request.method === "GET" && url.pathname === "/api/memories") return send(response, 200, memories.list({ limit: 500 }));
       if (request.method === "POST" && url.pathname === "/api/memories") { const b = await readBody(request); if (typeof b.content !== "string" || typeof b.type !== "string") return send(response, 400, { error: "Memory type and content are required." }); return send(response, 201, memories.create({ type: b.type as MemoryType, scope: typeof b.scope === "string" ? b.scope : "global", content: b.content, sourceType: "local_app", confidence: 0.9 })); }
+      if (request.method === "GET" && url.pathname === "/api/permissions") return send(response, 200, permissionRepo.list());
+      if (request.method === "POST" && url.pathname === "/api/permissions/terminal-approval") {
+        const rule = permissionRepo.setRule({ actorId: "user:local", tool: "terminal", action: "run", targetPattern: config.workspaceDir, effect: "approval_required" });
+        return send(response, 201, rule);
+      }
+      if (request.method === "POST" && url.pathname === "/api/terminal") {
+        const b = await readBody(request);
+        if (typeof b.commandId !== "string") return send(response, 400, { error: "Select a predefined terminal command." });
+        const action: ActionRequest = { actorId: "user:local", tool: "terminal", action: "run", target: config.workspaceDir, payload: { commandId: b.commandId } };
+        const decision = policy.evaluate(action);
+        if (decision.effect === "deny") return send(response, 403, { error: "Terminal command is denied by policy. Enable approval-gated terminal access first." });
+        const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
+        new TerminalTool({ workspaceRoot: config.workspaceDir }).register(gateway);
+        if (decision.effect === "approval_required") {
+          const approval = approvals.request(action);
+          pendingTerminalActions.set(approval.id, action);
+          return send(response, 202, { status: "approval_required", approval });
+        }
+        return send(response, 200, await new RuntimeEngine(database, gateway).execute(action, { timeoutMs: 120000 }));
+      }
       if (request.method === "GET" && url.pathname === "/api/agents") return send(response, 200, agents.list().map(({ systemPrompt, ...agent }) => agent));
       if (request.method === "POST" && url.pathname === "/api/research") { const b = await readBody(request); if (typeof b.query !== "string") return send(response, 400, { error: "Search query is required." }); return send(response, 200, await searchWeb(b.query, 8)); }
       if (request.method === "POST" && url.pathname === "/api/chat") { const b = await readBody(request); if (typeof b.prompt !== "string" || !b.prompt.trim()) return send(response, 400, { error: "Prompt is required." }); const router = createLocalAiRouter(database); const provider = router.list()[0]; if (!provider) return send(response, 503, { error: "Local AI is not connected." }); const prompt = b.prompt.trim().slice(0, 12000); const profile = agents.get(typeof b.agentId === "string" ? b.agentId : "assistant"); const context = await loadProjectContext(); const result = await router.generate(provider.id, { messages: buildAgentMessages(profile, prompt, context, memories.search(prompt, { limit: 5 })), temperature: 0.2, maxOutputTokens: 1800 }, { actorId: "user:local", purpose: "local workspace chat: " + profile.id }); return send(response, 200, { text: result.text, model: result.model, durationMs: result.durationMs }); }
@@ -85,8 +107,16 @@ export async function startLocalApp(database: ScopyDatabase, config: ScopyConfig
       const approval = url.pathname.match(/^\/api\/approvals\/([0-9a-f-]+)\/(approve|reject)$/i);
       if (request.method === "POST" && approval) {
         const id = approval[1]!;
-        if (approval[2] === "reject") { approvalRunIds.delete(id); return send(response, 200, approvals.reject(id, "user:local")); }
+        if (approval[2] === "reject") { approvalRunIds.delete(id); pendingTerminalActions.delete(id); return send(response, 200, approvals.reject(id, "user:local")); }
         const result = approvals.approve(id, "user:local");
+        const terminalAction = pendingTerminalActions.get(id);
+        if (terminalAction) {
+          pendingTerminalActions.delete(id);
+          const gateway = new ToolGateway(new ExecutionGuard(database, policy, approvals));
+          new TerminalTool({ workspaceRoot: config.workspaceDir }).register(gateway);
+          const execution = await new RuntimeEngine(database, gateway).execute(terminalAction, { timeoutMs: 120000 }, id);
+          return send(response, 200, { approval: result, execution });
+        }
         const runId = approvalRunIds.get(id);
         if (!runId) return send(response, 200, result);
         approvalRunIds.delete(id);
