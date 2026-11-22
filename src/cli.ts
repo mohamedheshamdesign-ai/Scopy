@@ -5,6 +5,8 @@ import { loadConfig } from "./config.js";
 import { openDatabase } from "./db/database.js";
 import { loadProjectContext } from "./project/project-context.js";
 import { MemoryRepository, type MemoryType } from "./memory/memory-repository.js";
+import { generateDraftPlan } from "./orchestrator/planner.js";
+import { PlanRepository } from "./orchestrator/plan-repository.js";
 import { TaskNotFoundError, TaskRepository } from "./tasks/task-repository.js";
 
 function printUsage(): void {
@@ -23,6 +25,11 @@ Commands:
   npm run dev -- memory add <type> <scope> "Memory content"
   npm run dev -- memory search "Search query"
   npm run dev -- memory list
+  npm run dev -- plan create "Describe the goal to plan"
+  npm run dev -- plan list
+  npm run dev -- plan show <plan-id>
+  npm run dev -- plan approve <plan-id>
+  npm run dev -- plan reject <plan-id>
 `);
 }
 
@@ -150,6 +157,50 @@ async function main(): Promise<void> {
       }
       if (subcommand === "list") {
         console.log(JSON.stringify(memories.list(), null, 2));
+        return;
+      }
+      printUsage();
+      process.exitCode = 1;
+      return;
+    }
+
+    if (command === "plan") {
+      const plans = new PlanRepository(database);
+      if (subcommand === "create") {
+        const goal = args.join(" ").trim();
+        if (!goal) throw new Error('Usage: plan create "Describe the goal to plan"');
+        const router = createLocalAiRouter(database);
+        const provider = router.list()[0];
+        if (!provider) throw new Error("No AI provider is configured.");
+        const plan = await generateDraftPlan(router, provider.id, plans, goal);
+        console.log(JSON.stringify({
+          ...plan,
+          notice: "Saved as DRAFT. Review every step before approving. Approval does not execute the plan.",
+        }, null, 2));
+        return;
+      }
+      if (subcommand === "list") {
+        console.log(JSON.stringify(plans.list(), null, 2));
+        return;
+      }
+      if (subcommand === "show") {
+        const id = args[0];
+        if (!id) throw new Error("Usage: plan show <plan-id>");
+        const plan = plans.getById(id);
+        if (!plan) throw new Error(`Plan not found: ${id}`);
+        console.log(JSON.stringify(plan, null, 2));
+        return;
+      }
+      if (subcommand === "approve" || subcommand === "reject") {
+        const id = args[0];
+        if (!id) throw new Error(`Usage: plan ${subcommand} <plan-id>`);
+        const plan = plans.review(id, subcommand === "approve" ? "approved" : "rejected", "user:local");
+        console.log(JSON.stringify({
+          ...plan,
+          notice: plan.status === "approved"
+            ? "Plan approved for review purposes only. No tools or actions have been executed."
+            : "Plan rejected. No tools or actions have been executed.",
+        }, null, 2));
         return;
       }
       printUsage();
