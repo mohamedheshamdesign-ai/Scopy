@@ -92,7 +92,7 @@ npm start -- health
 By default, Scopy uses the repository directory as its home. With `SCOPY_HOME=E:\\Scopy`, all controllable local data stays under that root:
 
 ```text
-E:\\Scopy\\data\\scopy.sqlite
+E:\Scopy\data\scopy.sqlite
 ```
 
 Set `SCOPY_HOME` to change the Scopy home directory. Database files, WAL files, logs, secrets, backups, local model caches, runtime binaries, temporary files, and workspace contents must never be committed.
