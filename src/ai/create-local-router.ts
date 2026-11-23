@@ -1,4 +1,5 @@
 import type { ScopyDatabase } from "../db/database.js";
+import { CloudOpenAIProvider } from "./cloud-openai-provider.js";
 import { LocalOpenAIProvider } from "./local-openai-provider.js";
 import { ProviderRouter } from "./provider-router.js";
 
@@ -36,5 +37,25 @@ export function createLocalAiRouter(
       ? { apiKey: environment.SCOPY_LOCAL_AI_API_KEY }
       : {}),
   }));
+  const cloudUrl = environment.SCOPY_CLOUD_AI_URL?.trim();
+  const cloudModel = environment.SCOPY_CLOUD_AI_MODEL?.trim();
+  const cloudKey = environment.SCOPY_CLOUD_API_KEY?.trim();
+  const anyCloud = cloudUrl !== undefined && cloudUrl !== "" || cloudModel !== undefined && cloudModel !== "" || cloudKey !== undefined && cloudKey !== "";
+  if (anyCloud) {
+    if (!cloudUrl || !cloudModel || !cloudKey) {
+      throw new Error("Cloud AI is opt-in: set SCOPY_CLOUD_AI_URL, SCOPY_CLOUD_AI_MODEL, and SCOPY_CLOUD_API_KEY together, or unset all three.");
+    }
+    const rawCloudTimeout = environment.SCOPY_CLOUD_AI_TIMEOUT_MS;
+    const cloudTimeoutMs = rawCloudTimeout === undefined ? undefined : Number(rawCloudTimeout);
+    if (cloudTimeoutMs !== undefined && (!Number.isInteger(cloudTimeoutMs) || cloudTimeoutMs < 1 || cloudTimeoutMs > 600_000)) {
+      throw new Error("SCOPY_CLOUD_AI_TIMEOUT_MS must be an integer between 1 and 600000.");
+    }
+    router.register(new CloudOpenAIProvider({
+      baseUrl: cloudUrl,
+      model: cloudModel,
+      apiKey: cloudKey,
+      ...(cloudTimeoutMs !== undefined ? { timeoutMs: cloudTimeoutMs } : {}),
+    }));
+  }
   return router;
 }

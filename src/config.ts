@@ -1,6 +1,6 @@
 import { join, resolve } from "node:path";
 
-export type ScopySafetyProfile = "strict" | "workspace_assist";
+export type ScopySafetyProfile = "strict" | "workspace_assist" | "workspace_autonomy";
 
 export interface ScopyConfig {
   readonly safetyProfile: ScopySafetyProfile;
@@ -23,8 +23,8 @@ export function loadConfig(
     throw new Error("SCOPY_HOME contains an invalid null character.");
   }
   const rawSafetyProfile = environment.SCOPY_SAFETY_PROFILE?.trim() ?? "strict";
-  if (rawSafetyProfile !== "strict" && rawSafetyProfile !== "workspace_assist") {
-    throw new Error("SCOPY_SAFETY_PROFILE must be strict or workspace_assist.");
+  if (rawSafetyProfile !== "strict" && rawSafetyProfile !== "workspace_assist" && rawSafetyProfile !== "workspace_autonomy") {
+    throw new Error("SCOPY_SAFETY_PROFILE must be strict, workspace_assist, or workspace_autonomy.");
   }
   const safetyProfile: ScopySafetyProfile = rawSafetyProfile;
   const homeDir = resolve(configuredHome);

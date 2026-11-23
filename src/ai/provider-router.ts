@@ -28,8 +28,29 @@ export class ProviderRouter {
     }));
   }
 
-  async health(providerId: string, signal?: AbortSignal): Promise<ProviderHealth> {
+  async health(
+    providerId: string,
+    signal?: AbortSignal,
+    options?: { readonly allowCloudEgress?: boolean; readonly actorId?: string; readonly purpose?: string },
+  ): Promise<ProviderHealth> {
     const provider = this.getProvider(providerId);
+    if (provider.descriptor.dataBoundary === "cloud" && options?.allowCloudEgress !== true) {
+      this.audit("ai.egress.blocked", providerId, {
+        actorId: options?.actorId ?? "user:local",
+        purpose: options?.purpose ?? "provider health check",
+      }, { reason: "explicit cloud egress opt-in missing", channel: "health" });
+      return {
+        healthy: false,
+        checkedAt: new Date().toISOString(),
+        detail: "Cloud provider health checks are disabled. Explicit allowCloudEgress: true is required for this request.",
+      };
+    }
+    if (provider.descriptor.dataBoundary === "cloud") {
+      this.audit("ai.egress.authorized", providerId, {
+        actorId: options?.actorId ?? "user:local",
+        purpose: options?.purpose ?? "provider health check",
+      }, { channel: "health" });
+    }
     return provider.health(signal);
   }
 

@@ -52,6 +52,9 @@ export class PolicyEngine {
           return { effect: "approval_required", reason: "Built-in workspace_assist profile requires approval for workspace changes.", ruleId: null };
         }
       }
+      if (this.profile === "workspace_autonomy" && request.actorId === "user:local" && request.tool === "filesystem") {
+        return { effect: "allow", reason: "Built-in workspace_autonomy profile permits workspace filesystem actions (read, list, write, mkdir); terminal, browser, computer, and MCP actions still require exact approval, and explicit rules always win.", ruleId: null };
+      }
       return { effect: "deny", reason: "No matching permission rule; default deny.", ruleId: null };
     }
 
