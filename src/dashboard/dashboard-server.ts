@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile, chmod } from "node:fs/promises";
 import { join } from "node:path";
 import type { ScopyConfig } from "../config.js";
 import type { ScopyDatabase } from "../db/database.js";
-import { createLocalAiRouter } from "../ai/create-local-router.js";
+import { connectLocalAiRouter } from "../ai/create-local-router.js";
 import { AgentRegistry, buildAgentMessages } from "../agents/agent-registry.js";
 import { loadProjectContext } from "../project/project-context.js";
 import { TaskRepository, type TaskPriority, type TaskStatus } from "../tasks/task-repository.js";
@@ -264,15 +264,13 @@ export class DashboardServer {
         running: (this.database.prepare("SELECT COUNT(*) AS n FROM orchestrator_runs WHERE status = 'running'").get() as { n: number }).n,
       };
       const audit = this.database.prepare("SELECT id, event_type AS eventType, entity_type AS entityType, entity_id AS entityId, created_at AS createdAt FROM audit_events ORDER BY created_at DESC LIMIT 30").all();
-      let ai: Record<string, unknown> = { configured: false, healthy: false, detail: "Local model is not configured in this PowerShell session." };
-      if (process.env.SCOPY_LOCAL_AI_MODEL?.trim()) {
-        try {
-          const router = createLocalAiRouter(this.database);
-          const provider = router.list()[0];
-          ai = provider ? { configured: true, ...(await router.health(provider.id)) } : { configured: false, healthy: false };
-        } catch (error) {
-          ai = { configured: true, healthy: false, detail: errorMessage(error) };
-        }
+      let ai: Record<string, unknown>;
+      try {
+        const router = await connectLocalAiRouter(this.database);
+        const provider = router.list()[0];
+        ai = provider ? { configured: true, ...(await router.health(provider.id)) } : { configured: false, healthy: false };
+      } catch (error) {
+        ai = { configured: false, healthy: false, detail: errorMessage(error) };
       }
       json(response, 200, {
         counts,
@@ -298,7 +296,7 @@ export class DashboardServer {
       const prompt = stringField(input, "prompt", 8000);
       const agentId = optionalString(input, "agentId", 40) ?? "assistant";
       const profile = new AgentRegistry().get(agentId);
-      const router = createLocalAiRouter(this.database);
+      const router = await connectLocalAiRouter(this.database);
       const provider = router.list()[0];
       if (!provider) throw new Error("No local AI provider is configured.");
       const projectContext = await loadProjectContext();
@@ -383,7 +381,7 @@ export class DashboardServer {
       const goal = stringField(input, "goal", 2000);
       const agentId = typeof input.agentId === "string" ? input.agentId : "assistant";
       const agent = new AgentRegistry().get(agentId);
-      const router = createLocalAiRouter(this.database);
+      const router = await connectLocalAiRouter(this.database);
       const provider = router.list()[0];
       if (!provider) throw new Error("No local AI provider is configured.");
       json(response, 201, await generateDraftPlan(router, provider.id, plans, goal, agent.name + ": " + agent.description + "\n" + agent.systemPrompt));
@@ -581,7 +579,7 @@ export class DashboardServer {
       const registry = new AgentRegistry();
       const selected = [...new Set(input.agentIds as string[])].map((id) => registry.get(id));
       if (selected.some((agent) => agent.id === "assistant")) throw new Error("Choose specialist profiles for team mode.");
-      const router = createLocalAiRouter(this.database);
+      const router = await connectLocalAiRouter(this.database);
       const provider = router.list()[0];
       if (!provider) throw new Error("No local AI provider is configured.");
       const projectContext = await loadProjectContext();

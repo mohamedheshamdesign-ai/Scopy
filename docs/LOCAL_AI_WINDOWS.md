@@ -73,7 +73,7 @@ Default profile:
 - KV cache: default F16.
 - Speculative decoding: off for baseline.
 
-The launcher refuses to start if the expected cached GGUF is missing, free RAM is below 6 GiB, free Vulkan0 VRAM is below 2048 MiB, required flags are unavailable, or port 8080 is already occupied. It uses the local GGUF path, not a Hugging Face download URL. It creates an API key file under E:\Scopy\secrets, restricts its Windows ACL to the current user, SYSTEM, and Administrators, and passes it with --api-key-file (not on the command line). The key file is plaintext protected by NTFS permissions, not encrypted at rest; keep the E: volume and Windows account protected. It persists only path and non-secret configuration values in the Windows user environment; the key is loaded into the CLI shell only by the connection script.
+The launcher refuses to start if the expected cached GGUF is missing, free RAM is below 6 GiB, free Vulkan0 VRAM is below 2048 MiB, required flags are unavailable, or port 8080 is already occupied. It uses the local GGUF path, not a Hugging Face download URL. It creates an API key file under E:\Scopy\secrets, restricts its Windows ACL to the current user, SYSTEM, and Administrators, and passes it with --api-key-file (not on the command line). The key file is plaintext protected by NTFS permissions, not encrypted at rest; keep the E: volume and Windows account protected. It persists only path and non-secret configuration values in the Windows user environment. Scopy reads the key from that protected file at connection time, so the CLI and dashboard authenticate from any shell; the connection script is no longer required for single-model setups.
 
 The context can be tested at 4096, 8192, then 16384 only if RAM and VRAM remain healthy:
 
@@ -87,7 +87,7 @@ Do not assume the model's advertised 262K context is practical on this 32 GB / 6
 
 ## 3. Discover the exact API model ID
 
-In a second PowerShell window, connect Scopy to the running authenticated server:
+No manual step is required when exactly one model is served: Scopy reads the protected key file itself and discovers the served model ID from the loopback server on first use (CLI or dashboard, any shell). Explicit selection is only needed when several models are served at once; then set SCOPY_LOCAL_AI_MODEL or run the optional connection script in the shell you work from:
 
 ~~~
 . .\scripts\connect-local-ai.ps1
@@ -95,7 +95,7 @@ In a second PowerShell window, connect Scopy to the running authenticated server
 
 The script reads the protected key file, requests the served model IDs with Bearer authentication, selects the model automatically when exactly one model is served, validates the ID, and sets the current PowerShell environment. It persists only non-secret Scopy settings in the user environment. If multiple models are served, pass -ModelId explicitly.
 
-The ai models CLI command also lists available model IDs after the connection script has loaded the key into the current shell. Do not guess the model ID from the Hugging Face repository name.
+The ai models CLI command lists available model IDs using the same key-file fallback, without the connection script. Do not guess the model ID from the Hugging Face repository name.
 
 ## 4. Scopy health and real chat
 
@@ -115,7 +115,7 @@ $env:SCOPY_LOCAL_AI_TIMEOUT_MS = "600000"
 
 Allowed values are integer milliseconds from 1 through 600000. The setting controls chat generation only; model discovery and health checks retain their shorter request limits. The provider remains non-streaming, so the CLI prints the answer only after the complete response has arrived. This timeout is a maximum wait, not a performance target.
 
-Scopy local adapter accepts only HTTP loopback endpoints and sends the local Bearer key from the current PowerShell session. It does not silently fall back to cloud. The router has no cloud provider enabled by default, and cloud egress remains blocked unless a caller explicitly opts in at the router API.
+Scopy local adapter accepts only HTTP loopback endpoints and sends the local Bearer key from the current PowerShell session or the launcher's protected key file. It does not silently fall back to cloud. The router has no cloud provider enabled by default, and cloud egress remains blocked unless a caller explicitly opts in at the router API.
 
 ## 5. Benchmark generation speed
 

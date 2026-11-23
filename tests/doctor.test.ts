@@ -13,7 +13,9 @@ test("doctor checks local storage and reports an unconfigured AI model without f
   const config = loadConfig(home);
   const database = openDatabase(config);
   try {
-    const report = await runDoctor(config, database, {});
+    const report = await runDoctor(config, database, {}, undefined, async () => {
+      throw new Error("No local server is running in this test.");
+    });
     assert.equal(report.healthy, true);
     assert.equal(report.homeDir, home);
     assert.ok(report.checks.filter((check) => check.name !== "local_ai").every((check) => check.status === "ok"));

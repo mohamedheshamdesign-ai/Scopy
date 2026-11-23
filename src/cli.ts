@@ -1,7 +1,8 @@
 import { AgentRegistry, buildAgentMessages } from "./agents/agent-registry.js";
 import { ScopyLogger } from "./logging/scopy-logger.js";
 import { runDoctor } from "./doctor/doctor.js";
-import { createLocalAiRouter } from "./ai/create-local-router.js";
+import { connectLocalAiRouter } from "./ai/create-local-router.js";
+import { resolveLocalAiApiKey } from "./ai/local-connection.js";
 import { listLocalModels } from "./ai/local-openai-provider.js";
 import { loadConfig } from "./config.js";
 import { openDatabase, openDatabaseReadOnly } from "./db/database.js";
@@ -135,12 +136,12 @@ async function main(): Promise<void> {
     if (command === "ai") {
       if (subcommand === "models") {
         const baseUrl = process.env.SCOPY_LOCAL_AI_URL ?? "http://127.0.0.1:8080/v1";
-        const models = await listLocalModels(baseUrl, process.env.SCOPY_LOCAL_AI_API_KEY);
+        const models = await listLocalModels(baseUrl, resolveLocalAiApiKey(process.env));
         console.log(JSON.stringify({ baseUrl, models }, null, 2));
         return;
       }
 
-      const router = createLocalAiRouter(database);
+      const router = await connectLocalAiRouter(database);
       const provider = router.list()[0];
       if (!provider) throw new Error("No AI provider is configured.");
 
@@ -233,7 +234,7 @@ async function main(): Promise<void> {
       if (subcommand === "plan") {
         const goal = args.slice(1).join(" ").trim();
         if (!goal) throw new Error('Usage: agent plan <agent-id> "Goal to plan"');
-        const router = createLocalAiRouter(database);
+        const router = await connectLocalAiRouter(database);
         const provider = router.list()[0];
         if (!provider) throw new Error("No AI provider is configured.");
         const plan = await generateDraftPlan(router, provider.id, new PlanRepository(database), goal, profile.systemPrompt);
@@ -247,7 +248,7 @@ async function main(): Promise<void> {
       if (subcommand === "run") {
         const prompt = args.slice(1).join(" ").trim();
         if (!prompt) throw new Error('Usage: agent run <agent-id> "Your prompt"');
-        const router = createLocalAiRouter(database);
+        const router = await connectLocalAiRouter(database);
         const provider = router.list()[0];
         if (!provider) throw new Error("No AI provider is configured.");
         const projectContext = await loadProjectContext();
@@ -415,7 +416,7 @@ async function main(): Promise<void> {
       if (subcommand === "create") {
         const goal = args.join(" ").trim();
         if (!goal) throw new Error('Usage: plan create "Describe the goal to plan"');
-        const router = createLocalAiRouter(database);
+        const router = await connectLocalAiRouter(database);
         const provider = router.list()[0];
         if (!provider) throw new Error("No AI provider is configured.");
         const plan = await generateDraftPlan(router, provider.id, plans, goal);

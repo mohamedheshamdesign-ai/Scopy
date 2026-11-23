@@ -150,7 +150,7 @@ The gateway is an internal application API. MCP stdio integrations are configure
 
 The AI provider contract and router are provider-independent. The first adapter speaks the OpenAI-compatible chat API but is deliberately restricted to HTTP loopback endpoints (`localhost`, `127.0.0.1`, or `::1`). The default endpoint is `http://127.0.0.1:8080/v1`; no remote endpoint is accepted by this local adapter.
 
-Configure the exact model ID reported by your local server:
+When the server was started with `scripts\start-local-ai.ps1`, no per-shell setup is needed: Scopy reads the launcher's ACL-protected key file from `<SCOPY_HOME>\secrets` and auto-discovers the model ID when exactly one model is served, so the CLI and dashboard connect from any shell. The environment variables below remain as explicit overrides (for example to choose between several served models):
 
 ```powershell
 $env:SCOPY_LOCAL_AI_URL = "http://127.0.0.1:8080/v1"
@@ -162,7 +162,7 @@ npm run dev -- ai health
 npm run dev -- ai chat "Explain the current Scopy architecture."
 ```
 
-These environment variables apply to the current PowerShell session. API keys are not written to SQLite or project files. Scopy does not silently fall back to a cloud model. Cloud model support stays disabled prep only: no adapter collects API keys or makes paid requests until the user opts in. When a cloud profile is eventually enabled, egress is restricted to the exact reviewed provider host whose protocol the adapter implements (currently only api.openai.com, OpenAI Chat Completions); literal IP hosts, credentialed URLs, redirects, and private or reserved DNS resolutions are refused. Health checks and requests share one gated path that requires explicit cloud access, and API keys are injected per request at the client layer and redacted from structured logs. Live-provider behavior is untested (no keys or paid traffic were used); activation is the user's decision and his charges.
+These environment variables apply to the current PowerShell session and take precedence over the key file and auto-discovery. API keys are not written to SQLite or project files. Scopy does not silently fall back to a cloud model. Cloud model support stays disabled prep only: no adapter collects API keys or makes paid requests until the user opts in. When a cloud profile is eventually enabled, egress is restricted to the exact reviewed provider host whose protocol the adapter implements (currently only api.openai.com, OpenAI Chat Completions); literal IP hosts, credentialed URLs, redirects, and private or reserved DNS resolutions are refused. Health checks and requests share one gated path that requires explicit cloud access, and API keys are injected per request at the client layer and redacted from structured logs. Live-provider behavior is untested (no keys or paid traffic were used); activation is the user's decision and his charges.
 
 The first memory repository stores working, episodic, semantic, project, preference, and procedural records with scope, source type/reference, confidence, timestamps, and optional expiry. Search is bounded lexical retrieval with scope filtering and global-memory inclusion; it is not semantic/vector search. Archived and expired records are excluded. Memory create/archive operations are audited.
 

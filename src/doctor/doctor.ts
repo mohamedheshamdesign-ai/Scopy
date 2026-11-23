@@ -1,5 +1,6 @@
 import { existsSync, statSync } from "node:fs";
-import { createLocalAiRouter } from "../ai/create-local-router.js";
+import { connectLocalAiRouter } from "../ai/create-local-router.js";
+import type { ProviderRouter } from "../ai/provider-router.js";
 import type { ScopyConfig } from "../config.js";
 import type { ScopyDatabase } from "../db/database.js";
 
@@ -22,6 +23,10 @@ export async function runDoctor(
   database: ScopyDatabase | undefined,
   environment: Readonly<Record<string, string | undefined>> = process.env,
   databaseError?: string,
+  connectRouter: (
+    db: ScopyDatabase,
+    env: Readonly<Record<string, string | undefined>>,
+  ) => Promise<ProviderRouter> = connectLocalAiRouter,
 ): Promise<DoctorReport> {
   const checks: DoctorCheck[] = [];
   checks.push({ name: "safety_profile", status: "ok", detail: config.safetyProfile });
@@ -56,15 +61,11 @@ export async function runDoctor(
     checks.push({
       name: "local_ai",
       status: environment.SCOPY_LOCAL_AI_MODEL?.trim() ? "warning" : "not_configured",
-      detail: environment.SCOPY_LOCAL_AI_MODEL?.trim()
-        ? "Local AI health check skipped because the Scopy database is unavailable."
-        : "Run scripts\\connect-local-ai.ps1 in the current PowerShell session.",
+      detail: "Local AI health check skipped because the Scopy database is unavailable.",
     });
-  } else if (!environment.SCOPY_LOCAL_AI_MODEL?.trim()) {
-    checks.push({ name: "local_ai", status: "not_configured", detail: "Run scripts\\connect-local-ai.ps1 in the current PowerShell session." });
   } else {
     try {
-      const router = createLocalAiRouter(database, environment);
+      const router = await connectRouter(database, environment);
       const provider = router.list()[0];
       const health = provider ? await router.health(provider.id) : null;
       checks.push({
@@ -73,7 +74,15 @@ export async function runDoctor(
         detail: health?.detail ?? "No local AI provider is registered.",
       });
     } catch (error) {
-      checks.push({ name: "local_ai", status: "warning", detail: error instanceof Error ? error.message : "Local AI check failed." });
+      if (environment.SCOPY_LOCAL_AI_MODEL?.trim()) {
+        checks.push({ name: "local_ai", status: "warning", detail: error instanceof Error ? error.message : "Local AI check failed." });
+      } else {
+        checks.push({
+          name: "local_ai",
+          status: "not_configured",
+          detail: "No local model is connected. Start it with scripts\\start-local-ai.ps1; Scopy connects automatically when exactly one model is served.",
+        });
+      }
     }
   }
   return {

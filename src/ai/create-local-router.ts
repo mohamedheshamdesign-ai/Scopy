@@ -1,5 +1,6 @@
 import type { ScopyDatabase } from "../db/database.js";
 import { CloudOpenAIProvider } from "./cloud-openai-provider.js";
+import { resolveLocalAiApiKey, resolveLocalAiModel } from "./local-connection.js";
 import { LocalOpenAIProvider } from "./local-openai-provider.js";
 import { ProviderRouter } from "./provider-router.js";
 
@@ -27,15 +28,14 @@ export function createLocalAiRouter(
     throw new Error("SCOPY_LOCAL_AI_TIMEOUT_MS must be an integer between 1 and 600000.");
   }
 
+  const apiKey = resolveLocalAiApiKey(environment);
   const router = new ProviderRouter(database);
   router.register(new LocalOpenAIProvider({
     baseUrl,
     model,
     maxContextTokens,
     timeoutMs,
-    ...(environment.SCOPY_LOCAL_AI_API_KEY
-      ? { apiKey: environment.SCOPY_LOCAL_AI_API_KEY }
-      : {}),
+    ...(apiKey ? { apiKey } : {}),
   }));
   const cloudUrl = environment.SCOPY_CLOUD_AI_URL?.trim();
   const cloudModel = environment.SCOPY_CLOUD_AI_MODEL?.trim();
@@ -58,4 +58,20 @@ export function createLocalAiRouter(
     }));
   }
   return router;
+}
+
+/**
+ * Self-connecting variant for interactive entry points (CLI ai commands and the
+ * dashboard). On top of createLocalAiRouter it discovers the served model ID
+ * from the loopback server when SCOPY_LOCAL_AI_MODEL is not set, so a running
+ * local server is enough — no per-shell connect script required. The explicit
+ * environment configuration always wins, and createLocalAiRouter remains the
+ * strictly env-driven path for tests and scripted use.
+ */
+export async function connectLocalAiRouter(
+  database: ScopyDatabase,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+): Promise<ProviderRouter> {
+  const model = await resolveLocalAiModel(environment);
+  return createLocalAiRouter(database, { ...environment, SCOPY_LOCAL_AI_MODEL: model });
 }
