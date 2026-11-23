@@ -70,7 +70,7 @@ npm run dev -- agent list
 npm run dev -- agent run brand-designer "Create a brand identity direction for a premium design studio"
 ```
 
-Projects can be created, listed, inspected, and archived. Tasks can be linked to active projects, filtered by project/status, and updated. Use `project show <PROJECT_ID>` to inspect a project and its tasks, `project update <PROJECT_ID> name|description <value>` to edit it, and `project archive <PROJECT_ID>` to archive it without deleting linked tasks. Run `backup list` to see saved snapshots, and `backup create` to create a SQLite snapshot under `E:\Scopy\backups`, then `backup verify <BACKUP_FILENAME>` to check its integrity. Use `backup restore <BACKUP_FILENAME>` to restore a verified snapshot; Scopy first creates and retains a verified safety backup of the current database. Close other Scopy processes before restoring.
+Projects can be created, listed, inspected, and archived. Tasks can be linked to active projects, filtered by project/status, and updated. Use `project show <PROJECT_ID>` to inspect a project and its tasks, `project update <PROJECT_ID> name|description <value>` to edit it, and `project archive <PROJECT_ID>` to archive it without deleting linked tasks. Run `backup list` to see saved snapshots, and `backup create` to create a SQLite snapshot under `E:\\Scopy\\backups`, then `backup verify <BACKUP_FILENAME>` to check its integrity. Use `backup restore <BACKUP_FILENAME>` to restore a verified snapshot; Scopy first creates and retains a verified safety backup of the current database. Close other Scopy processes before restoring.
 
 To complete a task, copy its ID from the task list:
 
@@ -89,10 +89,10 @@ npm start -- health
 
 ## Local data
 
-By default, Scopy uses the repository directory as its home. With `SCOPY_HOME=E:\Scopy`, all controllable local data stays under that root:
+By default, Scopy uses the repository directory as its home. With `SCOPY_HOME=E:\\Scopy`, all controllable local data stays under that root:
 
 ```text
-E:\Scopy\data\scopy.sqlite
+E:\\Scopy\\data\\scopy.sqlite
 ```
 
 Set `SCOPY_HOME` to change the Scopy home directory. Database files, WAL files, logs, secrets, backups, local model caches, runtime binaries, temporary files, and workspace contents must never be committed.
@@ -122,7 +122,7 @@ The CLI writes structured JSON logs to `logs/scopy.log`, redacts sensitive field
 
 The local foundation includes task and project persistence, versioned SQLite migrations, SQLite backup creation and integrity verification, a central permission policy engine, exact-action approval records, one-time approval consumption, audit events, local AI chat, typed planning, and guarded filesystem execution. GitHub Actions validates the project on Windows and Linux for changes to `dev`.
 
-The permission engine uses **default deny**. Rules can be scoped by actor, tool, action, and target. Target patterns support an exact target, `*`, or a trailing wildcard prefix such as `E:\Scopy\workspace\*`. Filesystem targets are normalized with Windows path rules and compared case-insensitively. A more specific rule takes precedence; ties resolve as deny, then approval-required, then allow.
+The permission engine uses **default deny**. Rules can be scoped by actor, tool, action, and target. Target patterns support an exact target, `*`, or a trailing wildcard prefix such as `E:\\Scopy\\workspace\\*`. Filesystem targets are normalized with Windows path rules and compared case-insensitively. A more specific rule takes precedence; ties resolve as deny, then approval-required, then allow.
 
 The filesystem adapter resolves existing paths (including symlinks) and verifies that the resolved destination remains inside the configured workspace before reads and writes. String-pattern checks alone are not a filesystem sandbox.
 
