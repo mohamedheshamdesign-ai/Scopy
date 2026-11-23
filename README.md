@@ -41,6 +41,8 @@ The script checks Node.js 24+, installs dependencies with npm, runs typecheck/bu
 
 Set `SCOPY_WORKSPACE_DIR` in the current PowerShell session when Scopy should operate on a specific project folder instead of the default `workspace` directory. Set `SCOPY_SAFETY_PROFILE=workspace_assist` to allow workspace reads/listings and require approval for writes/creating directories; the default `strict` profile denies actions without explicit permission rules. This built-in profile applies only to `user:local` and never grants terminal or other tool access. Point `SCOPY_WORKSPACE_DIR` only at a dedicated project folder: `workspace_assist` permits reading and listing every file inside that folder, so do not use a drive root, your home directory, Scopy's secrets/data folders, or a directory containing unrelated private files. The SQLite database, logs, backups, and other Scopy data remain under `SCOPY_HOME`.
 
+A third profile, `SCOPY_SAFETY_PROFILE=workspace_autonomy`, pre-authorizes only the workspace-scoped filesystem actions (`read`, `list`, `write`, `mkdir`) for `user:local`. Terminal, browser, Windows computer, and MCP actions still require exact one-time approval under this profile, explicit permission rules always win over the profile, and every action stays audited. The default remains `strict`; activate `workspace_autonomy` only by an explicit choice for the current session, and point `SCOPY_WORKSPACE_DIR` at a dedicated project folder under the same restrictions as `workspace_assist`.
+
 ## First commands
 
 Run the development CLI:
@@ -68,7 +70,7 @@ npm run dev -- agent list
 npm run dev -- agent run brand-designer "Create a brand identity direction for a premium design studio"
 ```
 
-Projects can be created, listed, inspected, and archived. Tasks can be linked to active projects, filtered by project/status, and updated. Use `project show <PROJECT_ID>` to inspect a project and its tasks, `project update <PROJECT_ID> name|description <value>` to edit it, and `project archive <PROJECT_ID>` to archive it without deleting linked tasks. Run `backup list` to see saved snapshots, and `backup create` to create a SQLite snapshot under `E:\\Scopy\\backups`, then `backup verify <BACKUP_FILENAME>` to check its integrity. Use `backup restore <BACKUP_FILENAME>` to restore a verified snapshot; Scopy first creates and retains a verified safety backup of the current database. Close other Scopy processes before restoring.
+Projects can be created, listed, inspected, and archived. Tasks can be linked to active projects, filtered by project/status, and updated. Use `project show <PROJECT_ID>` to inspect a project and its tasks, `project update <PROJECT_ID> name|description <value>` to edit it, and `project archive <PROJECT_ID>` to archive it without deleting linked tasks. Run `backup list` to see saved snapshots, and `backup create` to create a SQLite snapshot under `E:\Scopy\backups`, then `backup verify <BACKUP_FILENAME>` to check its integrity. Use `backup restore <BACKUP_FILENAME>` to restore a verified snapshot; Scopy first creates and retains a verified safety backup of the current database. Close other Scopy processes before restoring.
 
 To complete a task, copy its ID from the task list:
 
@@ -87,7 +89,7 @@ npm start -- health
 
 ## Local data
 
-By default, Scopy uses the repository directory as its home. With `SCOPY_HOME=E:\\Scopy`, all controllable local data stays under that root:
+By default, Scopy uses the repository directory as its home. With `SCOPY_HOME=E:\Scopy`, all controllable local data stays under that root:
 
 ```text
 E:\Scopy\data\scopy.sqlite
@@ -120,7 +122,7 @@ The CLI writes structured JSON logs to `logs/scopy.log`, redacts sensitive field
 
 The local foundation includes task and project persistence, versioned SQLite migrations, SQLite backup creation and integrity verification, a central permission policy engine, exact-action approval records, one-time approval consumption, audit events, local AI chat, typed planning, and guarded filesystem execution. GitHub Actions validates the project on Windows and Linux for changes to `dev`.
 
-The permission engine uses **default deny**. Rules can be scoped by actor, tool, action, and target. Target patterns support an exact target, `*`, or a trailing wildcard prefix such as `E:\\Scopy\\workspace\\*`. Filesystem targets are normalized with Windows path rules and compared case-insensitively. A more specific rule takes precedence; ties resolve as deny, then approval-required, then allow.
+The permission engine uses **default deny**. Rules can be scoped by actor, tool, action, and target. Target patterns support an exact target, `*`, or a trailing wildcard prefix such as `E:\Scopy\workspace\*`. Filesystem targets are normalized with Windows path rules and compared case-insensitively. A more specific rule takes precedence; ties resolve as deny, then approval-required, then allow.
 
 The filesystem adapter resolves existing paths (including symlinks) and verifies that the resolved destination remains inside the configured workspace before reads and writes. String-pattern checks alone are not a filesystem sandbox.
 
@@ -144,7 +146,6 @@ Tools should observe `context.signal` and periodically check it during long oper
 
 The gateway is an internal application API. MCP stdio integrations are configured and invoked from the local dashboard, but specialist profiles do not yet autonomously invoke tools. Reviewer identity is currently supplied by the trusted local application layer; multi-user authenticated identity and a richer approval interface remain future work.
 
-
 ### AI Router and memory (initial local milestone)
 
 The AI provider contract and router are provider-independent. The first adapter speaks the OpenAI-compatible chat API but is deliberately restricted to HTTP loopback endpoints (`localhost`, `127.0.0.1`, or `::1`). The default endpoint is `http://127.0.0.1:8080/v1`; no remote endpoint is accepted by this local adapter.
@@ -161,7 +162,7 @@ npm run dev -- ai health
 npm run dev -- ai chat "Explain the current Scopy architecture."
 ```
 
-These environment variables apply to the current PowerShell session. API keys are not written to SQLite or project files. Scopy does not silently fall back to a cloud model. Cloud providers are blocked unless a caller explicitly sets `allowCloudEgress: true` for that request; blocked and authorized egress attempts are audited. No cloud provider adapter is enabled by default.
+These environment variables apply to the current PowerShell session. API keys are not written to SQLite or project files. Scopy does not silently fall back to a cloud model. Cloud providers are blocked unless a caller explicitly sets `allowCloudEgress: true` for that request; blocked and authorized egress attempts are audited. No cloud provider adapter is enabled by default. Optional preparation exists for one OpenAI-compatible cloud provider: set `SCOPY_CLOUD_AI_URL` (HTTPS public host only), `SCOPY_CLOUD_AI_MODEL`, and `SCOPY_CLOUD_API_KEY` together in the current session to register it; leaving any of them unset keeps the provider unregistered, and setting only some of them is a configuration error. Even when registered, every cloud request still requires per-request `allowCloudEgress: true` and both blocked and authorized attempts are audited. API keys are read from the session environment only and are never written to the database or project files. Enabling a cloud provider can incur provider charges and sends request content to that provider; that activation decision belongs to the user.
 
 The first memory repository stores working, episodic, semantic, project, preference, and procedural records with scope, source type/reference, confidence, timestamps, and optional expiry. Search is bounded lexical retrieval with scope filtering and global-memory inclusion; it is not semantic/vector search. Archived and expired records are excluded. Memory create/archive operations are audited.
 
@@ -174,13 +175,11 @@ npm run dev -- memory list
 
 CLI chat and advisory specialist agents retrieve up to five relevant active memories using bounded lexical matching; archived and expired memories are excluded. Retrieval evaluation begins with deterministic unit tests. Embeddings, automatic memory extraction/consolidation, cloud adapters, streaming, tool calling, and provider failover are intentionally not enabled yet.
 
-
 ### Windows local AI runtime
 
 A conservative Windows/Vulkan launcher, E:-scoped Hugging Face cache, model integrity/resource diagnostics, exact model ID discovery, and a Scopy CLI throughput benchmark are documented in [docs/LOCAL_AI_WINDOWS.md](docs/LOCAL_AI_WINDOWS.md).
 
 The local runtime launcher does not download models: it requires the already-cached Q4_K_M GGUF, binds only to 127.0.0.1, uses one sequence, and leaves GPU layer placement to llama.cpp memory fitting. Flash Attention, quantized KV cache, and speculative decoding are not enabled in the baseline unless separately measured and explicitly selected.
-
 
 ## Local dashboard
 
@@ -194,25 +193,17 @@ Open the exact loopback URL printed in PowerShell. The URL contains a one-time l
 
 The dashboard provides a local overview, assistant/specialist chat, task and project management, user-confirmed memory, plan review, guarded run execution, approval review, permission rules, audit activity, and verified database backups. Chat and planning require a configured local model in the same PowerShell session. It also includes user-initiated public web search (only the query is sent to DuckDuckGo), isolated Chrome/Edge navigation with page-text extraction, CSS-selector click/type and an allowlisted keypress set, a constrained terminal (node/git/python/powershell.exe, no shell, workspace-only working directory, bounded time/output), bounded Windows UI Automation window screenshots, and sequential two-to-three-specialist team synthesis. Browser interactions and terminal/computer actions require exact one-time approval. Browser downloads are denied. The isolated browser profile does not reuse personal browser cookies; users may sign in manually in that separate profile. Do not send passwords, API keys, or payment data through browser typing or computer set_value because exact approval payloads are retained in local approval history. These are limited capabilities: coordinate-based desktop control, unrestricted global keyboard shortcuts, remote HTTP MCP transports, built-in OAuth flows, and autonomous multi-agent tool delegation are not implemented. The dashboard also supports opt-in local stdio MCP servers; tool calls require exact approval, and only selected environment variable names are passed to the server process. Basic Windows UI Automation can inspect a window's control tree, invoke a uniquely identified control, or set a value after exact approval. Built-in OAuth flows and remote HTTP MCP transports are not included.
 
-
-
 ### Controlled terminal
 
 The local dashboard includes a constrained terminal action. It launches only `node`, `git`, `python`, or `powershell.exe` as a direct child process (no shell), requires an exact one-time approval by default, confines the working directory to the configured Scopy workspace, limits arguments, execution time (up to two minutes), and combined output (48 KiB). A process that spawns detached child processes may outlive the direct child timeout; this is not an OS-level sandbox. Never pass credentials in command-line arguments.
-
-
 
 ### Isolated browser and specialist team
 
 The dashboard can launch Chrome or Edge using a dedicated profile under `SCOPY_HOME\browser-profile`, open a URL, and extract the visible page text for review. It does not attach to the user's normal browser profile or reuse its cookies. Browser automation supports navigation, page reading, CSS-selector click/type, and an allowlisted keypress set, all with exact approvals. Downloads are blocked. It uses a separate Scopy profile, not the user's personal browser profile; manual sign-in in the Scopy profile is possible. Avoid entering secrets through automated typing because approval history retains action payloads. Team mode runs two or three advisory specialists sequentially through the same configured local model, then synthesizes their contributions; it is not yet autonomous multi-agent tool delegation.
 
-
-
 ### MCP integrations
 
 Open Integrations in the local dashboard to register an MCP stdio server. The server configuration is stored under `SCOPY_HOME\secrets\mcp-servers.json`. Scopy supports local `node`, `python`, or `powershell.exe` launchers without a shell; arguments are stored as configuration, while credentials should be supplied through PowerShell environment variables whose names are explicitly listed in `passEnv`. Discover a server's tools, inspect its input schema, request an exact approval, then execute the approved call. The MCP process is started for each discovery/call and closed afterward. Do not place credentials in arguments or tool payloads. This is a stdio bridge, not a built-in OAuth client or remote MCP transport.
-
-
 
 ### Windows computer control
 

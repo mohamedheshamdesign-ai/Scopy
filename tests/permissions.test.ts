@@ -142,12 +142,12 @@ test("a more specific tool-and-action deny beats a broad actor allow", async () 
     rules.setRule({ actorId: "agent:marketing", tool: "*", action: "*", effect: "allow" });
     rules.setRule({
       actorId: "*", tool: "filesystem", action: "read",
-      targetPattern: "E:\\\\Scopy\\\\private\\\\*",
+      targetPattern: "E:\\Scopy\\private\\*",
       effect: "deny",
     });
     assert.equal(policy.evaluate({
       actorId: "agent:marketing", tool: "filesystem", action: "read",
-      target: "E:\\\\Scopy\\\\private\\\\credentials.txt",
+      target: "E:\\Scopy\\private\\credentials.txt",
     }).effect, "deny");
   });
 });
@@ -168,7 +168,6 @@ test("approval_required wins over an equally specific allow rule", async () => {
     }).effect, "approval_required");
   });
 });
-
 
 test("permission rules can be listed and removed with an audit event", async () => {
   await withServices(async ({ rules, database }) => {
@@ -237,7 +236,6 @@ test("workspace_assist routes write actions through exact approval", async () =>
   });
 });
 
-
 test("terminal and browser actions cannot bypass explicit approval with an allow rule", async () => {
   await withServices(({ rules, policy }) => {
     rules.setRule({ actorId: "user:local", tool: "terminal", action: "run", effect: "allow" });
@@ -258,7 +256,6 @@ test("terminal and browser actions cannot bypass explicit approval with an allow
   });
 });
 
-
 test("Windows computer actions always require exact approval even when an allow rule exists", async () => {
   await withServices(({ rules, policy }) => {
     rules.setRule({ actorId: "user:local", tool: "computer", action: "invoke", effect: "allow" });
@@ -274,7 +271,6 @@ test("Windows computer actions always require exact approval even when an allow 
   });
 });
 
-
 test("MCP external tool calls always require exact approval even with an allow rule", async () => {
   await withServices(({ rules, policy }) => {
     rules.setRule({ actorId: "user:local", tool: "mcp", action: "call", effect: "allow" });
@@ -286,7 +282,6 @@ test("MCP external tool calls always require exact approval even with an allow r
   });
 });
 
- 
 test("an explicit deny rule overrides the terminal and browser approval requirement", async () => {
   await withServices(({ rules }) => {
     rules.setRule({ actorId: "user:local", tool: "terminal", action: "run", effect: "deny" });
@@ -294,4 +289,58 @@ test("an explicit deny rule overrides the terminal and browser approval requirem
     assert.equal(policy.evaluate({ actorId: "user:local", tool: "terminal", action: "run", target: ".", payload: {} }).effect, "deny");
     assert.equal(policy.evaluate({ actorId: "user:local", tool: "browser", action: "open", target: "https://example.com", payload: {} }).effect, "approval_required");
   });
+});
+
+test("workspace_autonomy allows workspace filesystem actions but keeps sensitive tools approval-gated", async () => {
+  const homeDir = mkdtempSync(join(tmpdir(), "scopy-autonomy-test-"));
+  const database = openDatabase(loadConfig(homeDir));
+  try {
+    const rules = new PermissionRepository(database);
+    const policy = new PolicyEngine(rules, "workspace_autonomy");
+    for (const action of ["read", "list", "write", "mkdir"]) {
+      const decision = policy.evaluate({ actorId: "user:local", tool: "filesystem", action, target: ".", payload: {} });
+      assert.equal(decision.effect, "allow", `workspace_autonomy should allow filesystem ${action}`);
+    }
+    for (const [tool, action] of [["terminal", "run"], ["browser", "open"], ["computer", "screenshot"], ["mcp", "call"]] as Array<[string, string]>) {
+      const decision = policy.evaluate({ actorId: "user:local", tool, action, target: ".", payload: {} });
+      assert.equal(decision.effect, "approval_required", `${tool} ${action} must stay approval-gated under workspace_autonomy`);
+    }
+    const denied = policy.evaluate({ actorId: "user:local", tool: "social", action: "publish", target: "account:brand", payload: {} });
+    assert.equal(denied.effect, "deny", "non-workspace tools without a rule stay default-denied");
+  } finally {
+    database.close();
+    rmSync(homeDir, { recursive: true, force: true });
+  }
+});
+
+test("explicit rules still win over the workspace_autonomy profile", async () => {
+  const homeDir = mkdtempSync(join(tmpdir(), "scopy-autonomy-rules-test-"));
+  const database = openDatabase(loadConfig(homeDir));
+  try {
+    const rules = new PermissionRepository(database);
+    rules.setRule({ actorId: "user:local", tool: "filesystem", action: "write", effect: "deny" });
+    const policy = new PolicyEngine(rules, "workspace_autonomy");
+    const decision = policy.evaluate({ actorId: "user:local", tool: "filesystem", action: "write", target: ".", payload: {} });
+    assert.equal(decision.effect, "deny", "an explicit deny rule must override the autonomy profile");
+    rules.setRule({ actorId: "user:local", tool: "filesystem", action: "write", effect: "approval_required" });
+    const gated = policy.evaluate({ actorId: "user:local", tool: "filesystem", action: "write", target: ".", payload: {} });
+    assert.equal(gated.effect, "approval_required", "an explicit approval rule must override the autonomy profile");
+  } finally {
+    database.close();
+    rmSync(homeDir, { recursive: true, force: true });
+  }
+});
+
+test("strict profile remains the default and denies workspace writes without a rule", async () => {
+  const homeDir = mkdtempSync(join(tmpdir(), "scopy-strict-default-test-"));
+  const database = openDatabase(loadConfig(homeDir));
+  try {
+    assert.equal(loadConfig(homeDir).safetyProfile, "strict");
+    const policy = new PolicyEngine(new PermissionRepository(database));
+    const decision = policy.evaluate({ actorId: "user:local", tool: "filesystem", action: "write", target: ".", payload: {} });
+    assert.equal(decision.effect, "deny", "strict default must keep denying workspace writes without a rule");
+  } finally {
+    database.close();
+    rmSync(homeDir, { recursive: true, force: true });
+  }
 });
